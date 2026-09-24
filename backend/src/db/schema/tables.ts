@@ -1,4 +1,5 @@
-import { pgTable, uuid, varchar, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { check, pgTable, uuid, varchar, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 
 export const tables = pgTable("tables", {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -12,4 +13,6 @@ export const tables = pgTable("tables", {
     updatedAt: timestamp("updated_at", { withTimezone: true })
         .defaultNow()
         .notNull()
-});
+}, (table) => [
+    check("tables_capacity_positive", sql`${table.capacity} > 0`),
+]);

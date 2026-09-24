@@ -1,4 +1,5 @@
-import { pgTable, uuid, varchar, time, integer, timestamp } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { check, pgTable, uuid, varchar, time, integer, timestamp } from "drizzle-orm/pg-core";
 
 export const restaurantSettings = pgTable("restaurant_settings", {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -14,4 +15,7 @@ export const restaurantSettings = pgTable("restaurant_settings", {
     updatedAt: timestamp("updated_at", { withTimezone: true })
         .defaultNow()
         .notNull()
-}) 
+}, (table) => [
+    check("restaurant_settings_reservation_duration_positive", sql`${table.reservationDuration} > 0`),
+    check("restaurant_settings_booking_interval_positive", sql`${table.bookingInterval} > 0`),
+]);
