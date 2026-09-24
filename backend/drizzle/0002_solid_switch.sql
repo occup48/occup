@@ -1,0 +1,2 @@
+ALTER TABLE "restaurant_settings" ADD COLUMN "key" varchar(50) DEFAULT 'default' NOT NULL;--> statement-breakpoint
+ALTER TABLE "restaurant_settings" ADD CONSTRAINT "restaurant_settings_key_unique" UNIQUE("key");

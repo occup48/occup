@@ -8,6 +8,27 @@
       "when": 1790154734487,
       "tag": "0000_redundant_jigsaw",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790205710372,
+      "tag": "0001_salty_magma",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790231514954,
+      "tag": "0002_solid_switch",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790234658807,
+      "tag": "0003_reservation_invariants",
+      "breakpoints": true
     }
   ]
 }
