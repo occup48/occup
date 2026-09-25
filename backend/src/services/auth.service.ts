@@ -6,6 +6,11 @@ import { users } from "../db/schema/users.js";
 import type { SignupInput, LoginInput } from "../validators/auth.validator.js";
 import { generateAccessToken } from "../utils/jwt.js";
 
+// Precomputed at cost 12, matching signup. Compare against it when no account exists
+// so unknown emails still perform the same expensive password check.
+const DUMMY_PASSWORD_HASH =
+  "$2b$12$xEA.3feT9UDsRJfaQoue2OkLR9k0oWgUNxfljFiHeP4mwihfio3hm";
+
 export const signUpUser = async (input: SignupInput) => {
   const { firstName, lastName, email, password } = input;
 
@@ -32,6 +37,8 @@ export const signUpUser = async (input: SignupInput) => {
       email,
       passwordHash,
     })
+    // The unique email constraint also handles concurrent signup requests.
+    .onConflictDoNothing({ target: users.email })
     .returning({
       id: users.id,
       firstName: users.firstName,
@@ -42,7 +49,7 @@ export const signUpUser = async (input: SignupInput) => {
     });
 
   if (!newUser) {
-    throw new Error("Failed to create user");
+    throw new Error("Email already in use");
   }
 
   return newUser;
@@ -58,15 +65,13 @@ export const signInUser = async (input: LoginInput) => {
     .where(eq(users.email, email))
     .limit(1);
 
-  // 2. Don't reveal whether the email exists
-  if (!user) {
-    throw new Error("Invalid email or password");
-  }
+  // 2. Always compare a hash before rejecting invalid credentials.
+  const passwordMatches = await bcrypt.compare(
+    password,
+    user?.passwordHash ?? DUMMY_PASSWORD_HASH,
+  );
 
-  // 3. Compare submitted password with stored bcrypt hash
-  const passwordMatches = await bcrypt.compare(password, user.passwordHash);
-
-  if (!passwordMatches) {
+  if (!user || !passwordMatches) {
     throw new Error("Invalid email or password");
   }
 
