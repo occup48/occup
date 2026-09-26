@@ -4,7 +4,7 @@ import { BookingSearch } from "./BookingSearch";
 
 const assurances = ["Instant confirmation", "Secure booking", "A better dining experience"];
 
-export function HeroSection() {
+export const HeroSection = () => {
   return (
     <section aria-labelledby="hero-title" className="relative isolate">
       <div className="absolute inset-x-0 top-0 bottom-10 -z-10 overflow-hidden bg-foreground sm:bottom-0">

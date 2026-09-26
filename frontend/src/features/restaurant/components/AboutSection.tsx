@@ -32,7 +32,7 @@ export function AboutSection() {
           ))}
         </dl>
         <Button variant="ghost" onClick={() => setExpanded(!expanded)} aria-expanded={expanded}
-          aria-controls="our-story" className="h-11 gap-2 bg-primary-light/60 px-5 hover:bg-primary-light">
+          aria-controls={expanded ? "our-story" : undefined} className="h-11 gap-2 bg-primary-light/60 px-5 hover:bg-primary-light">
           {expanded ? "Show Less" : "Learn More"}
           {expanded ? <ChevronUp aria-hidden="true" /> : <ArrowRight aria-hidden="true" />}
         </Button>

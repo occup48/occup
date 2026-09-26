@@ -20,7 +20,7 @@ export function MenuPreview() {
           <p className="eyebrow">OUR MENU</p>
           <h2 id="menu-title" className="section-heading mt-2">A Taste of What Awaits</h2>
         </div>
-        <Button variant="link" onClick={() => setExpanded(!expanded)} aria-expanded={expanded} aria-controls="full-menu"
+        <Button variant="link" onClick={() => setExpanded(!expanded)} aria-expanded={expanded} aria-controls={expanded ? "full-menu" : undefined}
           className="h-auto min-h-11 shrink-0 gap-1 px-0 text-[11px] text-primary-ink sm:gap-2 sm:text-sm">
           {expanded ? "Close Menu" : <><span className="sm:hidden">View Menu</span><span className="hidden sm:inline">View Full Menu</span></>}
           {expanded ? <ChevronUp aria-hidden="true" /> : <ArrowRight aria-hidden="true" />}
