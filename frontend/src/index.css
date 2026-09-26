@@ -39,6 +39,7 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-hover: var(--primary-hover);
+  --color-primary-ink: color-mix(in srgb, var(--primary-hover) 85%, var(--foreground));
   --color-primary-light: var(--primary-light);
 
   /* Secondary */
@@ -245,4 +246,92 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
+}
+/* Shared homepage layout and interaction treatments. */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 1.5rem;
+  }
+
+  button, [role="button"] {
+    cursor: pointer;
+  }
+
+  a, button, [tabindex="0"] {
+    @apply focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-hover;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .site-container {
+    @apply mx-auto w-[calc(100%-2rem)] sm:w-[calc(100%-3rem)] lg:w-[calc(100%-4rem)];
+  }
+
+  .section-heading {
+    @apply text-[1.4rem] leading-tight font-bold tracking-tight sm:text-[1.75rem] lg:text-[2rem];
+  }
+
+  .eyebrow {
+    @apply text-[10px] font-semibold tracking-[0.11em] text-foreground/80 sm:text-xs;
+  }
+
+  .primary-button {
+    @apply h-12 gap-2 rounded-lg bg-primary-hover px-5 text-sm font-semibold text-white hover:bg-primary-hover hover:brightness-95;
+  }
+
+  .nav-link {
+    @apply rounded-sm py-3 transition-colors hover:text-primary-hover;
+  }
+
+  .brand-logo {
+    @apply relative block h-10 w-27 shrink-0 overflow-hidden sm:h-12 sm:w-36;
+  }
+
+  .brand-logo img {
+    @apply absolute -top-0.5 left-0 h-auto w-43 max-w-none sm:w-56;
+  }
+
+  .booking-trigger {
+    @apply flex h-14 w-full min-w-0 items-center justify-start gap-1.5 rounded-md border-0 bg-transparent p-0 shadow-none hover:bg-primary-light/30 data-[size=default]:h-14 sm:gap-3;
+  }
+
+  .booking-icon {
+    @apply flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary-light/40 text-primary-hover sm:size-11;
+  }
+
+  .booking-icon svg {
+    @apply size-4 sm:size-5;
+  }
+
+  .horizontal-cards {
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-light) transparent;
+  }
+
+  .horizontal-cards > article {
+    scroll-snap-align: start;
+  }
+
+  .skip-link {
+    @apply fixed top-3 left-3 z-50 -translate-y-24 rounded-lg bg-white px-4 py-3 text-sm font-semibold text-primary-hover shadow-lg focus:translate-y-0;
+  }
+}
+
+/* Scoped control styles take precedence over the primitives' utility defaults. */
+.primary-button[data-slot="button"] {
+  @apply h-12 gap-2 rounded-lg bg-primary-hover px-5 text-sm font-semibold text-white hover:bg-primary-hover hover:brightness-95;
+}
+
+.booking-trigger[data-slot] {
+  @apply h-14 w-full min-w-0 justify-start gap-1.5 rounded-md border-0 bg-transparent p-0 shadow-none sm:gap-3;
 }
