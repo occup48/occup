@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
 import z from "zod";
 
-import { signUpUser, signInUser, getUserById } from "../services/auth.service.js";
-import { signUpSchema, signInSchema } from "../validators/auth.validator.js";
+import { signUpUser, signInUser, getUserById, googleAuthUser } from "../services/auth.service.js";
+import { signUpSchema, signInSchema, googleAuthSchema } from "../validators/auth.validator.js";
 
 export const signUp = async (req: Request, res: Response) => {
   const result = signUpSchema.safeParse(req.body);
@@ -80,6 +80,57 @@ export const signIn = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: "Unable to login",
+    });
+  }
+};
+
+export const googleAuth = async (req: Request, res: Response) => {
+  const result = googleAuthSchema.safeParse(req.body);
+
+  if (!result.success) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid Google credential",
+      errors: z.treeifyError(result.error),
+    });
+  }
+
+  try {
+    const { user, accessToken } = await googleAuthUser(result.data);
+
+    return res.status(200).json({
+      success: true,
+      message: "Google authentication successful",
+      data: {
+        user,
+        accessToken,
+      },
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Invalid Google account") {
+        return res.status(401).json({
+          success: false,
+          message: "Unable to verify Google account",
+        });
+      }
+
+      if (
+        error.message ===
+        "An account with this email already exists. Sign in with your password first."
+      ) {
+        return res.status(409).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    }
+
+    console.error("Google authentication error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to authenticate with Google",
     });
   }
 };

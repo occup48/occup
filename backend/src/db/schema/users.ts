@@ -7,7 +7,8 @@ export const users = pgTable("users", {
   firstName: varchar("first_name", { length: 100 }).notNull(),
   lastName: varchar("last_name", { length: 100 }).notNull(),
   email: varchar("email", { length: 100 }).notNull().unique(),
-  passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+  passwordHash: varchar("password_hash", { length: 255 }),
+  googleSub: varchar("google_sub", { length: 255 }).unique(),
   role: userRoleEnum("role").default("customer").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
