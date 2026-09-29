@@ -32,7 +32,7 @@ export function Navbar({
     <header id="home" className="border-b border-border/60 bg-white">
       <div className="site-container flex h-16 items-center justify-between gap-2 md:h-19">
         <Link to="/" aria-label="Occup home" className="brand-logo">
-          <img src={logo} alt="Occup" width="300" height="80" />
+          <img src={logo} alt="Occup"/>
         </Link>
         <nav
           aria-label="Main navigation"

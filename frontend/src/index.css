@@ -293,7 +293,7 @@
   }
 
   .brand-logo {
-    @apply relative block h-10 w-38 shrink-0 overflow-hidden sm:h-12 sm:w-44;
+    @apply relative block w-42 h-11 shrink-0 overflow-hidden sm:h-14 sm:w-54;
   }
 
   .brand-logo img {
