@@ -1,11 +1,16 @@
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { or } from "drizzle-orm";
-import { OAuth2Client } from "google-auth-library";
+import { gaxios, OAuth2Client } from "google-auth-library";
 
 import { db } from "../db/index.js";
 import { users } from "../db/schema/users.js";
-import type { SignUpInput, SignInInput, GoogleAuthInput } from "../validators/auth.validator.js";
+import {
+  googleProfileSchema,
+  type SignUpInput,
+  type SignInInput,
+  type GoogleAuthInput,
+} from "../validators/auth.validator.js";
 import { generateAccessToken } from "../utils/jwt.js";
 
 
@@ -109,6 +114,13 @@ export const googleAuthUser = async (input: GoogleAuthInput) => {
   const ticket = await googleClient.verifyIdToken({
     idToken: input.credential,
     audience: clientId,
+  }).catch((error: unknown) => {
+    // Certificate retrieval failures are server errors, not invalid credentials.
+    if (error instanceof gaxios.GaxiosError) {
+      throw error;
+    }
+
+    throw new Error("Invalid Google account", { cause: error });
   });
 
   const payload = ticket.getPayload();
@@ -125,32 +137,35 @@ export const googleAuthUser = async (input: GoogleAuthInput) => {
   const googleSub = payload.sub;
   const email = payload.email.toLowerCase();
 
-  const [existingUser] = await db
+  // Both columns are unique, so at most two accounts can match.
+  const matchingUsers = await db
     .select()
     .from(users)
     .where(or(eq(users.googleSub, googleSub), eq(users.email, email)))
-    .limit(1);
+    .limit(2);
+
+  const existingUser = matchingUsers.find((user) => user.googleSub === googleSub);
 
   if (existingUser) {
-    if (existingUser.googleSub === googleSub) {
-      const accessToken = generateAccessToken({
-        userId: existingUser.id,
+    const accessToken = generateAccessToken({
+      userId: existingUser.id,
+      role: existingUser.role,
+    });
+
+    return {
+      user: {
+        id: existingUser.id,
+        firstName: existingUser.firstName,
+        lastName: existingUser.lastName,
+        email: existingUser.email,
         role: existingUser.role,
-      });
+        createdAt: existingUser.createdAt,
+      },
+      accessToken,
+    };
+  }
 
-      return {
-        user: {
-          id: existingUser.id,
-          firstName: existingUser.firstName,
-          lastName: existingUser.lastName,
-          email: existingUser.email,
-          role: existingUser.role,
-          createdAt: existingUser.createdAt,
-        },
-        accessToken,
-      };
-    }
-
+  if (matchingUsers.length > 0) {
     throw new Error(
       "An account with this email already exists. Sign in with your password first.",
     );
@@ -164,15 +179,33 @@ export const googleAuthUser = async (input: GoogleAuthInput) => {
     payload.name?.split(" ").slice(1).join(" ") ||
     "User";
 
-  const [newUser] = await db
+  const profile = googleProfileSchema.parse({ firstName, lastName, email });
+
+  let [newUser] = await db
     .insert(users)
     .values({
-      firstName,
-      lastName,
-      email,
+      ...profile,
       googleSub,
     })
+    // Concurrent requests may claim either the Google subject or the email.
+    .onConflictDoNothing()
     .returning();
+
+  if (!newUser) {
+    const concurrentUsers = await db
+      .select()
+      .from(users)
+      .where(or(eq(users.googleSub, googleSub), eq(users.email, email)))
+      .limit(2);
+
+    newUser = concurrentUsers.find((user) => user.googleSub === googleSub);
+
+    if (!newUser && concurrentUsers.length > 0) {
+      throw new Error(
+        "An account with this email already exists. Sign in with your password first.",
+      );
+    }
+  }
 
   if (!newUser) {
     throw new Error("Failed to create Google user");

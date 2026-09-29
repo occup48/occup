@@ -43,6 +43,12 @@ export const signInSchema = z.object({
   password: passwordSchema.min(1, "Password is required"),
 });
 
+export const googleProfileSchema = z.object({
+  firstName: z.string().max(100, "First name must not exceed 100 characters"),
+  lastName: z.string().max(100, "Last name must not exceed 100 characters"),
+  email: signUpSchema.shape.email,
+});
+
 export const googleAuthSchema = z.object({
   credential: z.string().min(1, "Google credential is required"),
 });

@@ -107,6 +107,14 @@ export const googleAuth = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Google profile",
+        errors: z.treeifyError(error),
+      });
+    }
+
     if (error instanceof Error) {
       if (error.message === "Invalid Google account") {
         return res.status(401).json({
