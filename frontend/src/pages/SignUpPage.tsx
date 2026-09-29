@@ -1,5 +1,5 @@
-const SignUpPage = () => {
-  return <div>SignUpPage</div>;
-};
+import { AuthLayout } from "@/features/auth/components/AuthLayout";
+
+const SignUpPage = () => <AuthLayout mode="signup" />;
 
 export default SignUpPage;

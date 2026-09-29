@@ -108,7 +108,7 @@
 
 
 :root {
-  --primary: #0f9d8e;
+  --primary: #0e6e6e;
   --primary-hover: #0d8578;
   --primary-light: #d9f3f0;
   --primary-foreground: #ffffff;
@@ -136,7 +136,7 @@
 
   --border: #e5e7eb;
   --input: #e5e7eb;
-  --ring: #0f9d8e;
+  --ring: #0e6e6e;
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
@@ -150,7 +150,7 @@
   --info-foreground: #ffffff;
   --info-light: #dbeafe;
 
-  --chart-1: #0f9d8e;
+  --chart-1: #0e6e6e;
   --chart-2: #10b981;
   --chart-3: #3b82f6;
   --chart-4: #f59e0b;
@@ -160,12 +160,12 @@
 
   --sidebar: #ffffff;
   --sidebar-foreground: #111827;
-  --sidebar-primary: #0f9d8e;
+  --sidebar-primary: #0e6e6e;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #d9f3f0;
   --sidebar-accent-foreground: #0d8578;
   --sidebar-border: #e5e7eb;
-  --sidebar-ring: #0f9d8e;
+  --sidebar-ring: #0e6e6e;
 }
 
 
@@ -180,7 +180,7 @@
   --popover-foreground: #f9fafb;
 
   --primary: #14b8a6;
-  --primary-hover: #0f9d8e;
+  --primary-hover: #0e6e6e;
   --primary-light: #123b38;
   --primary-foreground: #ffffff;
 
@@ -334,4 +334,12 @@
 
 .booking-trigger[data-slot] {
   @apply h-14 w-full min-w-0 justify-start gap-1.5 rounded-md border-0 bg-transparent p-0 shadow-none sm:gap-3;
+}
+/* Authentication uses the existing Occup tokens and shared button primitive. */
+.auth-submit-button[data-slot="button"] {
+  @apply h-13 w-full gap-2 rounded-xl bg-primary-hover px-5 text-base font-semibold text-white shadow-xs hover:bg-primary-ink disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+.auth-google-button[data-slot="button"] {
+  @apply h-13 w-full gap-2 rounded-xl border border-input bg-white px-5 text-base font-semibold text-foreground shadow-xs disabled:cursor-not-allowed disabled:opacity-70;
 }
