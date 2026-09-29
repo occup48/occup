@@ -7,8 +7,8 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     /* Project structure */
-    /* "rootDir": "src", */
-    "outDir": "dist",
+     "rootDir": "./src", 
+    "outDir": "./dist",
     /* Type safety */
     "strict": true,
     "noUncheckedIndexedAccess": true,
@@ -23,5 +23,6 @@
     /* Environment types */
     "types": ["node"]
   },
-  "include": ["src", "drizzle.config.ts"]
+  "include": ["src/**/*ts"],
+  "exclude": ["node_modules", "dist", "drizzle.config.ts"]
 }
