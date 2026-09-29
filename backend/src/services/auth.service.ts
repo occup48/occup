@@ -1,17 +1,27 @@
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
+import { or } from "drizzle-orm";
+import { gaxios, OAuth2Client } from "google-auth-library";
 
 import { db } from "../db/index.js";
 import { users } from "../db/schema/users.js";
-import type { SignupInput, LoginInput } from "../validators/auth.validator.js";
+import {
+  googleProfileSchema,
+  type SignUpInput,
+  type SignInInput,
+  type GoogleAuthInput,
+} from "../validators/auth.validator.js";
 import { generateAccessToken } from "../utils/jwt.js";
+
+
+const googleClient = new OAuth2Client();
 
 // Precomputed at cost 12, matching signup. Compare against it when no account exists
 // so unknown emails still perform the same expensive password check.
 const DUMMY_PASSWORD_HASH =
   "$2b$12$xEA.3feT9UDsRJfaQoue2OkLR9k0oWgUNxfljFiHeP4mwihfio3hm";
 
-export const signUpUser = async (input: SignupInput) => {
+export const signUpUser = async (input: SignUpInput) => {
   const { firstName, lastName, email, password } = input;
 
   // 1. Check whether the email is already registered
@@ -55,7 +65,7 @@ export const signUpUser = async (input: SignupInput) => {
   return newUser;
 };
 
-export const signInUser = async (input: LoginInput) => {
+export const signInUser = async (input: SignInInput) => {
   const { email, password } = input;
 
   // 1. Find the user by email
@@ -94,6 +104,131 @@ export const signInUser = async (input: LoginInput) => {
   };
 };
 
+export const googleAuthUser = async (input: GoogleAuthInput) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+
+  if (!clientId) {
+    throw new Error("Google authentication is not configured");
+  }
+
+  const ticket = await googleClient.verifyIdToken({
+    idToken: input.credential,
+    audience: clientId,
+  }).catch((error: unknown) => {
+    // Certificate retrieval failures are server errors, not invalid credentials.
+    if (error instanceof gaxios.GaxiosError) {
+      throw error;
+    }
+
+    throw new Error("Invalid Google account", { cause: error });
+  });
+
+  const payload = ticket.getPayload();
+
+  if (
+    !payload ||
+    !payload.sub ||
+    !payload.email ||
+    payload.email_verified !== true
+  ) {
+    throw new Error("Invalid Google account");
+  }
+
+  const googleSub = payload.sub;
+  const email = payload.email.toLowerCase();
+
+  // Both columns are unique, so at most two accounts can match.
+  const matchingUsers = await db
+    .select()
+    .from(users)
+    .where(or(eq(users.googleSub, googleSub), eq(users.email, email)))
+    .limit(2);
+
+  const existingUser = matchingUsers.find((user) => user.googleSub === googleSub);
+
+  if (existingUser) {
+    const accessToken = generateAccessToken({
+      userId: existingUser.id,
+      role: existingUser.role,
+    });
+
+    return {
+      user: {
+        id: existingUser.id,
+        firstName: existingUser.firstName,
+        lastName: existingUser.lastName,
+        email: existingUser.email,
+        role: existingUser.role,
+        createdAt: existingUser.createdAt,
+      },
+      accessToken,
+    };
+  }
+
+  if (matchingUsers.length > 0) {
+    throw new Error(
+      "An account with this email already exists. Sign in with your password first.",
+    );
+  }
+
+  const firstName =
+    payload.given_name?.trim() || payload.name?.split(" ")[0] || "Google";
+
+  const lastName =
+    payload.family_name?.trim() ||
+    payload.name?.split(" ").slice(1).join(" ") ||
+    "User";
+
+  const profile = googleProfileSchema.parse({ firstName, lastName, email });
+
+  let [newUser] = await db
+    .insert(users)
+    .values({
+      ...profile,
+      googleSub,
+    })
+    // Concurrent requests may claim either the Google subject or the email.
+    .onConflictDoNothing()
+    .returning();
+
+  if (!newUser) {
+    const concurrentUsers = await db
+      .select()
+      .from(users)
+      .where(or(eq(users.googleSub, googleSub), eq(users.email, email)))
+      .limit(2);
+
+    newUser = concurrentUsers.find((user) => user.googleSub === googleSub);
+
+    if (!newUser && concurrentUsers.length > 0) {
+      throw new Error(
+        "An account with this email already exists. Sign in with your password first.",
+      );
+    }
+  }
+
+  if (!newUser) {
+    throw new Error("Failed to create Google user");
+  }
+
+  const accessToken = generateAccessToken({
+    userId: newUser.id,
+    role: newUser.role,
+  });
+
+  return {
+    user: {
+      id: newUser.id,
+      firstName: newUser.firstName,
+      lastName: newUser.lastName,
+      email: newUser.email,
+      role: newUser.role,
+      createdAt: newUser.createdAt,
+    },
+    accessToken,
+  };
+};
+
 export const getUserById = async (userId: string) => {
   const [user] = await db
     .select({
@@ -115,3 +250,4 @@ export const getUserById = async (userId: string) => {
 
   return user;
 };
+
