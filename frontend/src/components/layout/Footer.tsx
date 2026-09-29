@@ -25,7 +25,7 @@ export function Footer() {
       <div className="site-container">
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 py-6 sm:py-5">
           <Link to="/" aria-label="Occup home" className="brand-logo">
-            <img src={logo} alt="Occup" width="300" height="80" loading="lazy" />
+            <img src={logo} alt="Occup" width="132" height="36" loading="lazy" />
           </Link>
           <nav aria-label="Footer navigation" className="order-3 flex w-full justify-between gap-5 text-sm sm:order-0 sm:w-auto sm:gap-7">
             {HOME_NAVIGATION.map(({ label, href }) => (

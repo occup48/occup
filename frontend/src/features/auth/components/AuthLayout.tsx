@@ -37,7 +37,7 @@ export function AuthLayout({ mode }: { mode: AuthMode }) {
             className="auth-logo auth-desktop-logo"
             aria-label="Occup home"
           >
-            <img src={logoLight} alt="Occup" />
+            <img src={logoLight} alt="Occup" width="128" height="36" />
           </Link>
           <div className="auth-story">
             <h2>
@@ -57,7 +57,7 @@ export function AuthLayout({ mode }: { mode: AuthMode }) {
             className="auth-logo auth-mobile-logo"
             aria-label="Occup home"
           >
-            <img src={logo} alt="Occup" />
+            <img src={logo} alt="Occup" width="112" height="32" />
           </Link>
           <Card className="auth-card">
             <AuthTabs />

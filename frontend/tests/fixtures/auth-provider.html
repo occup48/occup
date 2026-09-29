@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8"><title>Auth provider test</title></head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import { createElement as h, StrictMode } from "react";
+      import { createRoot } from "react-dom/client";
+      import { AuthProvider } from "/src/features/auth/AuthProvider.tsx";
+      import { useAuth } from "/src/features/auth/auth.context.ts";
+
+      const root = createRoot(document.getElementById("root"));
+      function Probe() {
+        const { user, accessToken, isLoading, authenticate, signOut } = useAuth();
+        return h("main", null,
+          h("output", { id: "state" }, JSON.stringify({ user, accessToken, isLoading })),
+          h("button", { onClick: () => authenticate({
+            user: { id: "new-user", firstName: "New", lastName: "User", email: "new@example.com", role: "customer" },
+            accessToken: "new-token",
+          }, true) }, "Sign in"),
+          h("button", { onClick: signOut }, "Sign out"),
+          h("button", { onClick: () => root.unmount() }, "Unmount"),
+        );
+      }
+      root.render(h(StrictMode, null, h(AuthProvider, null, h(Probe))));
+    </script>
+  </body>
+</html>

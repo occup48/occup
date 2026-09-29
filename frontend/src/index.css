@@ -293,11 +293,11 @@
   }
 
   .brand-logo {
-    @apply relative block w-42 h-11 shrink-0 overflow-hidden sm:h-14 sm:w-54;
+    @apply relative block h-8 w-28 shrink-0 overflow-hidden sm:h-9 sm:w-32;
   }
 
   .brand-logo img {
-    @apply absolute -top-0.5 left-0 h-auto w-43 max-w-none sm:w-56;
+    @apply absolute -top-0.5 left-0 h-auto w-29 max-w-none sm:w-33;
   }
 
   .booking-trigger {
