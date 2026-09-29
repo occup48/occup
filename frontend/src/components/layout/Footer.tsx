@@ -1,7 +1,7 @@
 import { Camera as Instagram, Music2 } from "lucide-react";
 import type { SVGProps } from "react";
 import { Link } from "react-router-dom";
-import logo from "@/assets/images/logo-light.svg";
+import logo from "@/assets/images/logo.png";
 import { HOME_NAVIGATION } from "@/constants";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 

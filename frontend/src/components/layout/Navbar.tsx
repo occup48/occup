@@ -1,6 +1,6 @@
 import { CalendarDays, Menu, UserRound, X } from "lucide-react";
 import { Link } from "react-router-dom";
-import logo from "@/assets/images/logo-light.svg";
+import logo from "@/assets/images/logo.png";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -9,9 +9,24 @@ import {
 } from "@/components/ui/popover";
 import { HOME_NAVIGATION } from "@/constants";
 import { useState } from "react";
+import { useAuth } from "@/features/auth/auth.context";
 
-export function Navbar() {
+export function Navbar({
+  variant = "default",
+}: {
+  variant?: "default" | "auth";
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { user } = useAuth();
+  const isAuth = variant === "auth";
+  const navigation = isAuth
+    ? [
+        HOME_NAVIGATION[0],
+        HOME_NAVIGATION[2],
+        HOME_NAVIGATION[1],
+        HOME_NAVIGATION[3],
+      ]
+    : HOME_NAVIGATION;
 
   return (
     <header id="home" className="border-b border-border/60 bg-white">
@@ -23,13 +38,13 @@ export function Navbar() {
           aria-label="Main navigation"
           className="hidden items-center gap-7 text-sm font-medium sm:flex lg:gap-10"
         >
-          {HOME_NAVIGATION.map(({ label, href }) => (
+          {navigation.map(({ label, href }) => (
             <a
               key={href}
-              href={href}
-              aria-current={label === "Home" ? "page" : undefined}
+              href={isAuth ? "/" + href : href}
+              aria-current={!isAuth && label === "Home" ? "page" : undefined}
               className={
-                label === "Home"
+                !isAuth && label === "Home"
                   ? "nav-link text-primary-hover"
                   : "nav-link text-foreground/80"
               }
@@ -40,23 +55,35 @@ export function Navbar() {
         </nav>
         <div className="flex items-center gap-1 md:gap-5">
           <Link
-            to="/sign-in"
-            aria-label="Sign in"
-            className="nav-link flex size-11 items-center justify-center text-sm font-medium md:w-auto"
+            to={user ? "/reservations" : "/signin"}
+            aria-label={user ? "Your reservations" : "Sign in"}
+            className={
+              isAuth
+                ? "flex size-11 items-center justify-center rounded-full bg-muted text-foreground"
+                : "nav-link flex size-11 items-center justify-center text-sm font-medium md:w-auto"
+            }
           >
             <UserRound
               aria-hidden="true"
-              className="size-4 text-primary-hover md:hidden"
+              className={
+                isAuth ? "size-5" : "size-4 text-primary-hover md:hidden"
+              }
             />
-            <span className="hidden md:inline">Sign In</span>
+            {!isAuth && (
+              <span className="hidden md:inline">
+                {user ? "My Reservations" : "Sign In"}
+              </span>
+            )}
           </Link>
-          <Button
-            render={<Link to="/booking" />}
-            nativeButton={false}
-            className="primary-button hidden sm:inline-flex"
-          >
-            Book a Table
-          </Button>
+          {!isAuth && (
+            <Button
+              render={<Link to="/booking" />}
+              nativeButton={false}
+              className="primary-button hidden sm:inline-flex"
+            >
+              Book a Table
+            </Button>
+          )}
           <Link
             to="/booking"
             aria-label="Book a table"
@@ -77,12 +104,14 @@ export function Navbar() {
             </PopoverTrigger>
             <PopoverContent align="end" className="w-48 p-2">
               <nav aria-label="Mobile navigation" className="flex flex-col">
-                {HOME_NAVIGATION.map(({ label, href }) => (
+                {navigation.map(({ label, href }) => (
                   <a
                     key={href}
-                    href={href}
+                    href={isAuth ? "/" + href : href}
                     onClick={() => setMenuOpen(false)}
-                    aria-current={label === "Home" ? "page" : undefined}
+                    aria-current={
+                      !isAuth && label === "Home" ? "page" : undefined
+                    }
                     className="flex min-h-11 items-center rounded-md px-3 text-sm font-medium hover:bg-primary-light aria-[current=page]:text-primary-hover"
                   >
                     {label}
