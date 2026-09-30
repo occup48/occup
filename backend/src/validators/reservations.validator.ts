@@ -1,19 +1,22 @@
 import { z } from "zod";
 
-const todayStr = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+const RESTAURANT_TIMEZONE = process.env.RESTAURANT_TIMEZONE ?? "UTC";
 
-const currentTimeStr = () => {
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2, "0");
-  const mm = String(now.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
-};
+const todayStr = () =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: RESTAURANT_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
+const currentTimeStr = () =>
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: RESTAURANT_TIMEZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date());
 
 export const createReservationSchema = z
   .object({
