@@ -19,8 +19,8 @@ export async function getAvailableTables({ date, time, partySize }: Availability
     .limit(1);
 
   const durationMinutes = settings?.reservationDuration ?? 90;
-  const openingTime = settings?.openingTime ?? "00:00:00";
-  const closingTime = settings?.closingTime ?? "23:59:59";
+  const openingTime = (settings?.openingTime ?? "00:00:00").slice(0, 5);
+const closingTime = (settings?.closingTime ?? "23:59:59").slice(0, 5);
 
   const startTime = time;
   const endTime = addMinutes(time, durationMinutes);
