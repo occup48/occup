@@ -33,7 +33,7 @@ export const createReservationSchema = z
   .superRefine((data, ctx) => {
     if (data.reservationDate === todayStr() && data.startTime < currentTimeStr()) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "Time cannot be in the past",
         path: ["startTime"],
       });

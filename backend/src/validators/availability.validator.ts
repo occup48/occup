@@ -31,7 +31,7 @@ export const availabilityQuerySchema = z
   .superRefine((data, ctx) => {
     if (data.date === todayStr() && data.time < currentTimeStr()) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "Time cannot be in the past",
         path: ["time"],
       });
