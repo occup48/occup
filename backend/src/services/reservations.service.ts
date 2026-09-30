@@ -24,6 +24,13 @@ export async function createReservation(params: CreateReservationParams) {
   const durationMinutes = settings?.reservationDuration ?? 90;
   const endTime = addMinutes(params.startTime, durationMinutes);
 
+  if (endTime === null) {
+    const err: any = new Error("Reservation would extend past midnight");
+    err.code = "INVALID_TIME_RANGE";
+    throw err;
+  }
+
+  // This also re-validates operating hours and re-checks overlaps for us
   const stillAvailable = await getAvailableTables({
     date: params.reservationDate,
     time: params.startTime,
@@ -62,12 +69,13 @@ export async function createReservation(params: CreateReservationParams) {
   }
 }
 
-function addMinutes(time: string, minutes: number): string {
+function addMinutes(time: string, minutes: number): string | null {
   const [hStr, mStr] = time.split(":");
   const h = Number(hStr);
   const m = Number(mStr);
   const total = h * 60 + m + minutes;
-  const hh = Math.floor(total / 60) % 24;
+  if (total >= 24 * 60) return null;
+  const hh = Math.floor(total / 60);
   const mm = total % 60;
   return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }

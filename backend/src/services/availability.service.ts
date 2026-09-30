@@ -1,4 +1,4 @@
-import { and, eq, gte, lte, ne } from "drizzle-orm";
+import { and, eq, gt, gte, lt, ne } from "drizzle-orm";
 
 import { db } from "../db/index.js";
 import { tables } from "../db/schema/tables.js";
@@ -19,8 +19,23 @@ export async function getAvailableTables({ date, time, partySize }: Availability
     .limit(1);
 
   const durationMinutes = settings?.reservationDuration ?? 90;
+  const openingTime = settings?.openingTime ?? "00:00:00";
+  const closingTime = settings?.closingTime ?? "23:59:59";
+
   const startTime = time;
   const endTime = addMinutes(time, durationMinutes);
+
+  if (endTime === null) {
+    const err: any = new Error("Reservation would extend past midnight, which isn't supported");
+    err.code = "INVALID_TIME_RANGE";
+    throw err;
+  }
+
+  if (startTime < openingTime || endTime > closingTime) {
+    const err: any = new Error("Requested time is outside operating hours");
+    err.code = "OUTSIDE_OPERATING_HOURS";
+    throw err;
+  }
 
   const candidateTables = await db
     .select()
@@ -29,6 +44,8 @@ export async function getAvailableTables({ date, time, partySize }: Availability
 
   if (candidateTables.length === 0) return [];
 
+  // Strict overlap: existing.startTime < newEndTime AND existing.endTime > newStartTime
+  // (adjacent bookings that only touch at the boundary are NOT overlapping)
   const overlapping = await db
     .select({ tableId: reservations.tableId })
     .from(reservations)
@@ -36,8 +53,8 @@ export async function getAvailableTables({ date, time, partySize }: Availability
       and(
         eq(reservations.reservationDate, date),
         ne(reservations.status, "cancelled"),
-        lte(reservations.startTime, endTime),
-        gte(reservations.endTime, startTime),
+        lt(reservations.startTime, endTime),
+        gt(reservations.endTime, startTime),
       ),
     );
 
@@ -46,12 +63,14 @@ export async function getAvailableTables({ date, time, partySize }: Availability
   return candidateTables.filter((t) => !bookedTableIds.has(t.id));
 }
 
-function addMinutes(time: string, minutes: number): string {
- const [hStr, mStr] = time.split(":");
-const h = Number(hStr);
-const m = Number(mStr);
+/** Returns null if the result would cross midnight (unsupported). */
+function addMinutes(time: string, minutes: number): string | null {
+  const [hStr, mStr] = time.split(":");
+  const h = Number(hStr);
+  const m = Number(mStr);
   const total = h * 60 + m + minutes;
-  const hh = Math.floor(total / 60) % 24;
+  if (total >= 24 * 60) return null;
+  const hh = Math.floor(total / 60);
   const mm = total % 60;
   return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }

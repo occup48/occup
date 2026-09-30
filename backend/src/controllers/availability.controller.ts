@@ -21,7 +21,13 @@ export const getAvailability = async (req: Request, res: Response) => {
       message: "Availability retrieved",
       data: { tables: availableTables },
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === "INVALID_TIME_RANGE" || error.code === "OUTSIDE_OPERATING_HOURS") {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
     console.error("Availability error:", error);
     return res.status(500).json({
       success: false,

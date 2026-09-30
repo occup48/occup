@@ -16,14 +16,14 @@ export const postReservation = async (req: Request, res: Response) => {
 
   const userId = res.locals.user.userId;
 
-  try {
-   const { specialRequests, ...rest } = result.data;
+  const { specialRequests, ...rest } = result.data;
 
-const reservation = await createReservation({
-  ...rest,
-  userId,
-  ...(specialRequests !== undefined ? { specialRequests } : {}),
-});
+  try {
+    const reservation = await createReservation({
+      ...rest,
+      userId,
+      ...(specialRequests !== undefined ? { specialRequests } : {}),
+    });
     return res.status(201).json({
       success: true,
       message: "Reservation confirmed",
@@ -34,6 +34,12 @@ const reservation = await createReservation({
       return res.status(409).json({
         success: false,
         message: "That table is no longer available for the selected time.",
+      });
+    }
+    if (error.code === "INVALID_TIME_RANGE" || error.code === "OUTSIDE_OPERATING_HOURS") {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
       });
     }
     console.error("Reservation error:", error);
