@@ -103,7 +103,11 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           // This backend creates an account without issuing a session token.
           navigate("/signin", {
             replace: true,
-            state: { accountCreated: true, email: signup.email },
+            state: {
+              accountCreated: true,
+              email: signup.email,
+              from: routeState?.from,
+            },
           });
         }
       }
@@ -368,7 +372,14 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       />
       <p className="auth-switch-prompt">
         {isSignIn ? "Don’t have an account?" : "Already have an account?"}{" "}
-        <Link to={isSignIn ? "/signup" : "/signin"}>
+        <Link
+          to={isSignIn ? "/signup" : "/signin"}
+          state={
+            typeof routeState?.from === "string"
+              ? { from: routeState.from }
+              : undefined
+          }
+        >
           {isSignIn ? "Create account" : "Sign in"}
         </Link>
       </p>
