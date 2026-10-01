@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BookingSearchForm } from "./components/BookingSearchForm";
 import { TableSelection } from "./components/TableSelection";
@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 
 type Step = "search" | "select-table" | "review";
 
+const SIGN_IN_REDIRECT_DELAY_MS = 2000;
+
 export function BookingFlow() {
   const navigate = useNavigate();
   const [urlParams] = useSearchParams();
@@ -27,11 +29,21 @@ export function BookingFlow() {
   const [specialRequests, setSpecialRequests] = useState("");
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [acknowledgedUncertain, setAcknowledgedUncertain] = useState(false);
+  const [redirectingToSignIn, setRedirectingToSignIn] = useState(false);
+  const redirectTimer = useRef<number | null>(null);
 
   const { tables, isLoading, error: searchError, search } = useAvailability();
   const { submit, isSubmitting, error: submitError, isUncertain, clearError } = useCreateReservation();
 
   const showUncertainBanner = isUncertain && !acknowledgedUncertain;
+
+  // Don't redirect a guest who has already left this page.
+  useEffect(
+    () => () => {
+      if (redirectTimer.current !== null) window.clearTimeout(redirectTimer.current);
+    },
+    [],
+  );
 
   const handleSearch = async (values: AvailabilitySearchFormValues) => {
     setRefreshError(null);
@@ -50,7 +62,7 @@ export function BookingFlow() {
   };
 
   const handleConfirm = async () => {
-    if (!searchParams || !selectedTable || showUncertainBanner) return;
+    if (!searchParams || !selectedTable || showUncertainBanner || redirectingToSignIn) return;
 
     // Clear the acknowledgement before each new attempt, so a fresh uncertain
     // outcome shows its own warning instead of inheriting a past dismissal.
@@ -66,6 +78,23 @@ export function BookingFlow() {
 
     if (reservation) {
       navigate("/booking/success", { state: { reservation } });
+      return;
+    }
+
+    if (status === 401) {
+      // Not signed in (or the session expired): show the message, then send the
+      // guest to sign in and bring them back to the search they just made.
+      const returnTo =
+        "/booking?" +
+        new URLSearchParams({
+          date: searchParams.date,
+          guests: String(searchParams.partySize),
+          time: searchParams.time,
+        }).toString();
+      setRedirectingToSignIn(true);
+      redirectTimer.current = window.setTimeout(() => {
+        navigate("/signin", { state: { from: returnTo } });
+      }, SIGN_IN_REDIRECT_DELAY_MS);
       return;
     }
 
@@ -139,8 +168,12 @@ export function BookingFlow() {
           }}
           onConfirm={handleConfirm}
           isSubmitting={isSubmitting}
-          errorMessage={refreshError ?? submitError}
-          confirmDisabled={showUncertainBanner}
+          errorMessage={
+            redirectingToSignIn
+              ? "Please sign in to book a table. Taking you to the sign-in page..."
+              : refreshError ?? submitError
+          }
+          confirmDisabled={showUncertainBanner || redirectingToSignIn}
         />
       )}
     </div>
