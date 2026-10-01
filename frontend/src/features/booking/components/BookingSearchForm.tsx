@@ -13,15 +13,17 @@ interface Props {
   onSearch: (values: AvailabilitySearchFormValues) => void;
   isLoading: boolean;
   errorMessage?: string | null;
+  initialValues?: Partial<AvailabilitySearchFormInput>;
 }
 
-export function BookingSearchForm({ onSearch, isLoading, errorMessage }: Props) {
+export function BookingSearchForm({ onSearch, isLoading, errorMessage, initialValues }: Props) {
   const {
     register,
     handleSubmit,
     formState: { errors },
-} = useForm<AvailabilitySearchFormInput, unknown, AvailabilitySearchFormValues>({
+  } = useForm<AvailabilitySearchFormInput, unknown, AvailabilitySearchFormValues>({
     resolver: zodResolver(availabilitySearchSchema),
+    defaultValues: initialValues,
   });
   
   return (
