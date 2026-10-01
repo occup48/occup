@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { BookingSearchForm } from "./components/BookingSearchForm";
 import { TableSelection } from "./components/TableSelection";
 import { ReservationReview } from "./components/ReservationReview";
-import { format } from "date-fns";
 import { useAvailability } from "./hooks/useAvailability";
 import { useCreateReservation } from "./hooks/useCreateReservation";
 import type { Table } from "./types/booking";
@@ -11,12 +10,18 @@ import type { AvailabilitySearchFormValues } from "./validation/booking.schema";
 import { Button } from "@/components/ui/button";
 
 type Step = "search" | "select-table" | "review";
+const RESTAURANT_TIMEZONE = "Africa/Lagos";
+
+function todayInRestaurantTimezone() {
+  // The en-CA locale formats dates as YYYY-MM-DD
+  return new Intl.DateTimeFormat("en-CA", { timeZone: RESTAURANT_TIMEZONE }).format(new Date());
+}
 
 function parseInitialValues(params: URLSearchParams) {
   const date = params.get("date");
   const time = params.get("time");
   const guests = Number(params.get("guests"));
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = todayInRestaurantTimezone();
   return {
     date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= today ? date : undefined,
     time: time && /^\d{2}:\d{2}$/.test(time) ? time : undefined,
