@@ -8,6 +8,8 @@ import { useCreateReservation } from "./hooks/useCreateReservation";
 import type { Table } from "./types/booking";
 import type { AvailabilitySearchFormValues } from "./validation/booking.schema";
 import { parseInitialValues } from "./utils/parseInitialValues";
+import { restaurantNow } from "@/features/restaurant/utils/booking-time";
+import { RESTAURANT_TIMEZONE } from "@/features/restaurant/restaurant-timezone";
 import { Button } from "@/components/ui/button";
 
 type Step = "search" | "select-table" | "review";
@@ -15,7 +17,10 @@ type Step = "search" | "select-table" | "review";
 export function BookingFlow() {
   const navigate = useNavigate();
   const [urlParams] = useSearchParams();
-  const initialValues = parseInitialValues(urlParams);
+  const initialValues = parseInitialValues(
+    urlParams,
+    restaurantNow(new Date(), RESTAURANT_TIMEZONE).date,
+  );
   const [step, setStep] = useState<Step>("search");
   const [searchParams, setSearchParams] = useState<AvailabilitySearchFormValues | null>(null);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
