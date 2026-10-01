@@ -7,6 +7,8 @@ import { useAvailability } from "./hooks/useAvailability";
 import { useCreateReservation } from "./hooks/useCreateReservation";
 import type { Table } from "./types/booking";
 import type { AvailabilitySearchFormValues } from "./validation/booking.schema";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 type Step = "search" | "select-table" | "review";
 
@@ -17,9 +19,15 @@ export function BookingFlow() {
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [specialRequests, setSpecialRequests] = useState("");
   const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [acknowledgedUncertain, setAcknowledgedUncertain] = useState(false);
 
   const { tables, isLoading, error: searchError, search } = useAvailability();
-  const { submit, isSubmitting, error: submitError, isUncertain, reset } = useCreateReservation();
+  const { submit, isSubmitting, error: submitError, isUncertain } = useCreateReservation();
+
+  // The uncertain-outcome warning is NOT cleared by Back or reselecting a table —
+  // only by the guest explicitly acknowledging it, since we currently have no way
+  // to verify whether the original reservation actually went through.
+  const showUncertainBanner = isUncertain && !acknowledgedUncertain;
 
   const handleSearch = async (values: AvailabilitySearchFormValues) => {
     setSearchParams(values);
@@ -30,13 +38,12 @@ export function BookingFlow() {
   };
 
   const handleSelectTable = (table: Table) => {
-    reset(); // clear any leftover uncertain/error state from a previous attempt
     setSelectedTable(table);
     setStep("review");
   };
 
   const handleConfirm = async () => {
-    if (!searchParams || !selectedTable) return;
+    if (!searchParams || !selectedTable || showUncertainBanner) return;
 
     const { reservation, status } = await submit({
       tableId: selectedTable.id,
@@ -58,8 +65,6 @@ export function BookingFlow() {
       if (refreshed) {
         setStep("select-table");
       } else {
-        // Refresh itself failed — stay on review with a clear error rather than
-        // showing an empty table list that looks like "nothing available".
         setRefreshError(
           "That table is no longer available, and we couldn't refresh the list. Please try again.",
         );
@@ -68,7 +73,31 @@ export function BookingFlow() {
   };
 
   return (
-    <div className="max-w-md mx-auto p-4">
+    <div className="max-w-md mx-auto p-4 space-y-4">
+      {showUncertainBanner && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 space-y-3 text-sm">
+          <p className="text-amber-900">
+            We couldn't confirm whether your last reservation attempt went through. Please
+            contact us to verify before trying again — booking a different table could result
+            in two reservations.
+          </p>
+          <div className="flex gap-2">
+            <a href="tel:+10000000000" className="flex-1">
+              <Button variant="outline" className="w-full">
+                Contact Us
+              </Button>
+            </a>
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setAcknowledgedUncertain(true)}
+            >
+              I've Verified — Continue
+            </Button>
+          </div>
+        </div>
+      )}
+
       {step === "search" && (
         <BookingSearchForm onSearch={handleSearch} isLoading={isLoading} errorMessage={searchError} />
       )}
@@ -91,14 +120,13 @@ export function BookingFlow() {
           specialRequests={specialRequests}
           onSpecialRequestsChange={setSpecialRequests}
           onBack={() => {
-            reset();
             setRefreshError(null);
             setStep("select-table");
           }}
           onConfirm={handleConfirm}
           isSubmitting={isSubmitting}
           errorMessage={refreshError ?? submitError}
-          isUncertain={isUncertain}
+          confirmDisabled={showUncertainBanner}
         />
       )}
     </div>
