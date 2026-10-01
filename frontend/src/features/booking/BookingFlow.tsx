@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { BookingSearchForm } from "./components/BookingSearchForm";
 import { TableSelection } from "./components/TableSelection";
 import { ReservationReview } from "./components/ReservationReview";
@@ -11,8 +11,21 @@ import { Button } from "@/components/ui/button";
 
 type Step = "search" | "select-table" | "review";
 
+function parseInitialValues(params: URLSearchParams) {
+  const date = params.get("date");
+  const time = params.get("time");
+  const guests = Number(params.get("guests"));
+  return {
+    date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined,
+    time: time && /^\d{2}:\d{2}$/.test(time) ? time : undefined,
+    partySize: Number.isInteger(guests) && guests >= 1 && guests <= 20 ? guests : undefined,
+  };
+}
+
 export function BookingFlow() {
   const navigate = useNavigate();
+  const [urlParams] = useSearchParams();
+const initialValues = parseInitialValues(urlParams);
   const [step, setStep] = useState<Step>("search");
   const [searchParams, setSearchParams] = useState<AvailabilitySearchFormValues | null>(null);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
@@ -94,10 +107,14 @@ export function BookingFlow() {
         </div>
       )}
 
-      {step === "search" && (
-        <BookingSearchForm onSearch={handleSearch} isLoading={isLoading} errorMessage={searchError} />
+            {step === "search" && (
+        <BookingSearchForm
+          onSearch={handleSearch}
+          isLoading={isLoading}
+          errorMessage={searchError}
+          initialValues={initialValues}
+        />
       )}
-
       {step === "select-table" && (
         <>
           {refreshError && <p className="text-sm text-red-500">{refreshError}</p>}
