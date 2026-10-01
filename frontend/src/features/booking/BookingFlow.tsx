@@ -7,27 +7,10 @@ import { useAvailability } from "./hooks/useAvailability";
 import { useCreateReservation } from "./hooks/useCreateReservation";
 import type { Table } from "./types/booking";
 import type { AvailabilitySearchFormValues } from "./validation/booking.schema";
+import { parseInitialValues } from "./utils/parseInitialValues";
 import { Button } from "@/components/ui/button";
 
 type Step = "search" | "select-table" | "review";
-const RESTAURANT_TIMEZONE = "Africa/Lagos";
-
-function todayInRestaurantTimezone() {
-  // The en-CA locale formats dates as YYYY-MM-DD
-  return new Intl.DateTimeFormat("en-CA", { timeZone: RESTAURANT_TIMEZONE }).format(new Date());
-}
-
-function parseInitialValues(params: URLSearchParams) {
-  const date = params.get("date");
-  const time = params.get("time");
-  const guests = Number(params.get("guests"));
-  const today = todayInRestaurantTimezone();
-  return {
-    date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= today ? date : undefined,
-    time: time && /^\d{2}:\d{2}$/.test(time) ? time : undefined,
-    partySize: Number.isInteger(guests) && guests >= 1 && guests <= 20 ? guests : undefined,
-  };
-}
 
 export function BookingFlow() {
   const navigate = useNavigate();
@@ -123,6 +106,7 @@ export function BookingFlow() {
           initialValues={searchParams ?? initialValues}
         />
       )}
+
       {step === "select-table" && (
         <>
           {refreshError && <p className="text-sm text-red-500">{refreshError}</p>}
