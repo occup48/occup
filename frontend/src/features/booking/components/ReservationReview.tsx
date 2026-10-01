@@ -1,6 +1,9 @@
 import type { Table } from "../types/booking";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Link } from "react-router-dom";
+
+const SPECIAL_REQUESTS_MAX_LENGTH = 500;
 
 interface Props {
   date: string;
@@ -13,6 +16,7 @@ interface Props {
   onConfirm: () => void;
   isSubmitting: boolean;
   errorMessage?: string | null;
+  isUncertain?: boolean;
 }
 
 export function ReservationReview({
@@ -26,6 +30,7 @@ export function ReservationReview({
   onConfirm,
   isSubmitting,
   errorMessage,
+  isUncertain,
 }: Props) {
   return (
     <div className="space-y-4">
@@ -54,19 +59,36 @@ export function ReservationReview({
           placeholder="e.g. Window seat, birthday celebration..."
           className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
           rows={3}
+          maxLength={SPECIAL_REQUESTS_MAX_LENGTH}
         />
+        <p className="text-xs text-muted-foreground text-right">
+          {specialRequests.length}/{SPECIAL_REQUESTS_MAX_LENGTH}
+        </p>
       </div>
 
       {errorMessage && <p className="text-sm text-red-500">{errorMessage}</p>}
 
-      <div className="flex gap-3">
-        <Button variant="outline" onClick={onBack} className="flex-1">
-          Back
-        </Button>
-        <Button onClick={onConfirm} disabled={isSubmitting} className="flex-1">
-          {isSubmitting ? "Confirming..." : "Confirm Reservation"}
-        </Button>
-      </div>
+      {isUncertain ? (
+        <div className="space-y-3">
+          <Link to="/reservations">
+            <Button variant="outline" className="w-full">
+              Check My Reservations
+            </Button>
+          </Link>
+          <Button variant="outline" onClick={onBack} className="w-full">
+            Back
+          </Button>
+        </div>
+      ) : (
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={onBack} className="flex-1">
+            Back
+          </Button>
+          <Button onClick={onConfirm} disabled={isSubmitting} className="flex-1">
+            {isSubmitting ? "Confirming..." : "Confirm Reservation"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

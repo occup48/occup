@@ -18,12 +18,15 @@ export function BookingFlow() {
   const [specialRequests, setSpecialRequests] = useState("");
 
   const { tables, isLoading, error: searchError, search } = useAvailability();
-  const { submit, isSubmitting, error: submitError } = useCreateReservation();
+  const { submit, isSubmitting, error: submitError, isUncertain } = useCreateReservation();
 
   const handleSearch = async (values: AvailabilitySearchFormValues) => {
     setSearchParams(values);
-    await search(values);
-    setStep("select-table");
+    const success = await search(values);
+    if (success) {
+      setStep("select-table");
+    }
+    // On failure, stay on the search step — useAvailability already cleared stale tables.
   };
 
   const handleSelectTable = (table: Table) => {
@@ -33,34 +36,42 @@ export function BookingFlow() {
 
   const handleConfirm = async () => {
     if (!searchParams || !selectedTable) return;
-    const result = await submit({
+
+    const { reservation, status } = await submit({
       tableId: selectedTable.id,
       reservationDate: searchParams.date,
       startTime: searchParams.time,
       partySize: searchParams.partySize,
       specialRequests: specialRequests || undefined,
     });
-    if (result) {
-      navigate("/booking/success", { state: { reservation: result } });
+
+    if (reservation) {
+      navigate("/booking/success", { state: { reservation } });
+      return;
+    }
+
+    if (status === 409) {
+      // Table was booked in the meantime — refresh availability so the
+      // recovery path shows current, real choices instead of the stale list.
+      setSelectedTable(null);
+      await search(searchParams);
+      setStep("select-table");
     }
   };
 
   return (
     <div className="max-w-md mx-auto p-4">
       {step === "search" && (
-        <BookingSearchForm onSearch={handleSearch} isLoading={isLoading} />
+        <BookingSearchForm onSearch={handleSearch} isLoading={isLoading} errorMessage={searchError} />
       )}
 
       {step === "select-table" && (
-        <>
-          {searchError && <p className="text-sm text-red-500 mb-2">{searchError}</p>}
-          <TableSelection
-            tables={tables}
-            selectedTableId={selectedTable?.id}
-            onSelect={handleSelectTable}
-            onBack={() => setStep("search")}
-          />
-        </>
+        <TableSelection
+          tables={tables}
+          selectedTableId={selectedTable?.id}
+          onSelect={handleSelectTable}
+          onBack={() => setStep("search")}
+        />
       )}
 
       {step === "review" && searchParams && selectedTable && (
@@ -75,6 +86,7 @@ export function BookingFlow() {
           onConfirm={handleConfirm}
           isSubmitting={isSubmitting}
           errorMessage={submitError}
+          isUncertain={isUncertain}
         />
       )}
     </div>
