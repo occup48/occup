@@ -1,8 +1,8 @@
 const RESTAURANT_TIMEZONE = "Africa/Lagos";
 
-export function todayInRestaurantTimezone(): string {
+export function todayInRestaurantTimezone(now: Date = new Date()): string {
   // The en-CA locale formats dates as YYYY-MM-DD
-  return new Intl.DateTimeFormat("en-CA", { timeZone: RESTAURANT_TIMEZONE }).format(new Date());
+  return new Intl.DateTimeFormat("en-CA", { timeZone: RESTAURANT_TIMEZONE }).format(now);
 }
 
 export function parseInitialValues(

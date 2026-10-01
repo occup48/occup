@@ -51,3 +51,10 @@ test("party size must be a whole number from 1 to 20", () => {
 test("today in the restaurant timezone is formatted as YYYY-MM-DD", () => {
   assert.match(todayInRestaurantTimezone(), /^\d{4}-\d{2}-\d{2}$/);
 });
+
+test("today follows the Africa/Lagos calendar day, not UTC", () => {
+  // 23:30 UTC on Oct 1 is already 00:30 on Oct 2 in Lagos (UTC+1)
+  assert.equal(todayInRestaurantTimezone(new Date("2026-10-01T23:30:00Z")), "2026-10-02");
+  // 22:59 UTC is 23:59 in Lagos, so it is still Oct 1
+  assert.equal(todayInRestaurantTimezone(new Date("2026-10-01T22:59:00Z")), "2026-10-01");
+});
