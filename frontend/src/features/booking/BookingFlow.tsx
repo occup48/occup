@@ -45,7 +45,18 @@ export function BookingFlow() {
     [],
   );
 
+  // If the guest goes back or searches again during the delay, drop the pending
+  // redirect so it can't send them to sign in with an outdated search.
+  const cancelSignInRedirect = () => {
+    if (redirectTimer.current !== null) {
+      window.clearTimeout(redirectTimer.current);
+      redirectTimer.current = null;
+    }
+    setRedirectingToSignIn(false);
+  };
+
   const handleSearch = async (values: AvailabilitySearchFormValues) => {
+    cancelSignInRedirect();
     setRefreshError(null);
     setSearchParams(values);
     const success = await search(values);
@@ -162,6 +173,7 @@ export function BookingFlow() {
           specialRequests={specialRequests}
           onSpecialRequestsChange={setSpecialRequests}
           onBack={() => {
+            cancelSignInRedirect();
             clearError();
             setRefreshError(null);
             setStep("select-table");
