@@ -133,10 +133,21 @@ test("an unauthenticated confirm redirects to sign-in and returns to the prefill
 test("going Back during the redirect delay cancels it", async () => {
   const app = await openApp();
   try {
-    await reachConfirmSignedOut(app.page);
+    // Control the page clock so the 2 second redirect timer cannot fire on its own.
+    await app.page.clock.install();
+    await app.page.goto(baseURL + bookingPath);
+    await app.page.getByRole("button", { name: "Check Availability", exact: true }).click();
+    await app.page.getByRole("button", { name: "T01" }).click();
+    const confirm = app.page.getByRole("button", { name: "Confirm Reservation", exact: true });
+    await confirm.waitFor();
+    // Freeze time here: from now on, timers only fire when the test advances the clock.
+    await app.page.clock.pauseAt(new Date(Date.now() + 5000));
+    await confirm.click();
+    await app.page.getByText(redirectMessage).waitFor();
     await app.page.getByRole("button", { name: "Back", exact: true }).click();
     await app.page.getByRole("button", { name: "T01" }).waitFor();
-    await app.page.waitForTimeout(2500); // longer than the 2 second redirect delay
+    // Advance well past the 2 second delay. A redirect that was not cancelled would fire now.
+    await app.page.clock.runFor(5000);
     assert.equal(new URL(app.page.url()).pathname, "/booking");
     await app.page.getByRole("button", { name: "T01" }).waitFor();
     assert.equal(app.reservationCalls.length, 0);
