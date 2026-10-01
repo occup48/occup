@@ -8,7 +8,6 @@ import { useCreateReservation } from "./hooks/useCreateReservation";
 import type { Table } from "./types/booking";
 import type { AvailabilitySearchFormValues } from "./validation/booking.schema";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
 
 type Step = "search" | "select-table" | "review";
 
@@ -22,11 +21,8 @@ export function BookingFlow() {
   const [acknowledgedUncertain, setAcknowledgedUncertain] = useState(false);
 
   const { tables, isLoading, error: searchError, search } = useAvailability();
-  const { submit, isSubmitting, error: submitError, isUncertain } = useCreateReservation();
+  const { submit, isSubmitting, error: submitError, isUncertain, clearError } = useCreateReservation();
 
-  // The uncertain-outcome warning is NOT cleared by Back or reselecting a table —
-  // only by the guest explicitly acknowledging it, since we currently have no way
-  // to verify whether the original reservation actually went through.
   const showUncertainBanner = isUncertain && !acknowledgedUncertain;
 
   const handleSearch = async (values: AvailabilitySearchFormValues) => {
@@ -38,12 +34,18 @@ export function BookingFlow() {
   };
 
   const handleSelectTable = (table: Table) => {
+    clearError(); // clear a stale error from a previous table, but leave any unresolved uncertain-outcome warning in place
+    setRefreshError(null);
     setSelectedTable(table);
     setStep("review");
   };
 
   const handleConfirm = async () => {
     if (!searchParams || !selectedTable || showUncertainBanner) return;
+
+    // Clear the acknowledgement before each new attempt, so a fresh uncertain
+    // outcome shows its own warning instead of inheriting a past dismissal.
+    setAcknowledgedUncertain(false);
 
     const { reservation, status } = await submit({
       tableId: selectedTable.id,
@@ -77,24 +79,18 @@ export function BookingFlow() {
       {showUncertainBanner && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 space-y-3 text-sm">
           <p className="text-amber-900">
-            We couldn't confirm whether your last reservation attempt went through. Please
-            contact us to verify before trying again — booking a different table could result
-            in two reservations.
+            We couldn't confirm whether your last reservation attempt went through. We don't
+            currently have a way to look this up automatically — please wait a few minutes
+            before booking a different table, since trying again now could create a duplicate
+            reservation for the same time.
           </p>
-          <div className="flex gap-2">
-            <a href="tel:+10000000000" className="flex-1">
-              <Button variant="outline" className="w-full">
-                Contact Us
-              </Button>
-            </a>
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => setAcknowledgedUncertain(true)}
-            >
-              I've Verified — Continue
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => setAcknowledgedUncertain(true)}
+          >
+            I Understand — Continue Anyway
+          </Button>
         </div>
       )}
 
@@ -120,6 +116,7 @@ export function BookingFlow() {
           specialRequests={specialRequests}
           onSpecialRequestsChange={setSpecialRequests}
           onBack={() => {
+            clearError();
             setRefreshError(null);
             setStep("select-table");
           }}

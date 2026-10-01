@@ -28,11 +28,9 @@ export function useCreateReservation() {
     } catch (err) {
       if (err instanceof BookingError) {
         if (err.status === 0) {
-          // Network/timeout failure — the server may have created the reservation
-          // even though we never got the response. Don't offer a blind retry.
           setIsUncertain(true);
           setError(
-            "We couldn't confirm whether your reservation went through. Please check My Reservations before trying again.",
+            "We couldn't confirm whether your reservation went through. Please wait a few minutes and check before trying again.",
           );
         } else {
           setError(getBookingError(err));
@@ -46,10 +44,9 @@ export function useCreateReservation() {
     }
   };
 
-   const reset = () => {
+  const clearError = () => {
     setError(null);
-    setIsUncertain(false);
   };
 
-  return { submit, isSubmitting, error, isUncertain, reset };
+  return { submit, isSubmitting, error, isUncertain, clearError };
 }
