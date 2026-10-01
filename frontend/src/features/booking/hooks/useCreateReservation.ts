@@ -46,5 +46,10 @@ export function useCreateReservation() {
     }
   };
 
-  return { submit, isSubmitting, error, isUncertain };
+   const reset = () => {
+    setError(null);
+    setIsUncertain(false);
+  };
+
+  return { submit, isSubmitting, error, isUncertain, reset };
 }

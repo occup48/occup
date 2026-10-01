@@ -16,9 +16,10 @@ export function BookingFlow() {
   const [searchParams, setSearchParams] = useState<AvailabilitySearchFormValues | null>(null);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [specialRequests, setSpecialRequests] = useState("");
+  const [refreshError, setRefreshError] = useState<string | null>(null);
 
   const { tables, isLoading, error: searchError, search } = useAvailability();
-  const { submit, isSubmitting, error: submitError, isUncertain } = useCreateReservation();
+  const { submit, isSubmitting, error: submitError, isUncertain, reset } = useCreateReservation();
 
   const handleSearch = async (values: AvailabilitySearchFormValues) => {
     setSearchParams(values);
@@ -26,10 +27,10 @@ export function BookingFlow() {
     if (success) {
       setStep("select-table");
     }
-    // On failure, stay on the search step — useAvailability already cleared stale tables.
   };
 
   const handleSelectTable = (table: Table) => {
+    reset(); // clear any leftover uncertain/error state from a previous attempt
     setSelectedTable(table);
     setStep("review");
   };
@@ -51,11 +52,18 @@ export function BookingFlow() {
     }
 
     if (status === 409) {
-      // Table was booked in the meantime — refresh availability so the
-      // recovery path shows current, real choices instead of the stale list.
       setSelectedTable(null);
-      await search(searchParams);
-      setStep("select-table");
+      setRefreshError(null);
+      const refreshed = await search(searchParams);
+      if (refreshed) {
+        setStep("select-table");
+      } else {
+        // Refresh itself failed — stay on review with a clear error rather than
+        // showing an empty table list that looks like "nothing available".
+        setRefreshError(
+          "That table is no longer available, and we couldn't refresh the list. Please try again.",
+        );
+      }
     }
   };
 
@@ -82,10 +90,14 @@ export function BookingFlow() {
           table={selectedTable}
           specialRequests={specialRequests}
           onSpecialRequestsChange={setSpecialRequests}
-          onBack={() => setStep("select-table")}
+          onBack={() => {
+            reset();
+            setRefreshError(null);
+            setStep("select-table");
+          }}
           onConfirm={handleConfirm}
           isSubmitting={isSubmitting}
-          errorMessage={submitError}
+          errorMessage={refreshError ?? submitError}
           isUncertain={isUncertain}
         />
       )}
