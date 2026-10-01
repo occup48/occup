@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // Read at call time, not import time: index.ts loads .env.local after its imports run.
-const restaurantTimezone = () => process.env.RESTAURANT_TIMEZONE ?? "UTC";
+const restaurantTimezone = () => process.env.RESTAURANT_TIMEZONE ?? "Africa/Lagos";
 
 const todayStr = () =>
   new Intl.DateTimeFormat("en-CA", {
