@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { BookingSearchForm } from "./components/BookingSearchForm";
 import { TableSelection } from "./components/TableSelection";
 import { ReservationReview } from "./components/ReservationReview";
+import { format } from "date-fns";
 import { useAvailability } from "./hooks/useAvailability";
 import { useCreateReservation } from "./hooks/useCreateReservation";
 import type { Table } from "./types/booking";
@@ -15,8 +16,9 @@ function parseInitialValues(params: URLSearchParams) {
   const date = params.get("date");
   const time = params.get("time");
   const guests = Number(params.get("guests"));
+  const today = format(new Date(), "yyyy-MM-dd");
   return {
-    date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined,
+    date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= today ? date : undefined,
     time: time && /^\d{2}:\d{2}$/.test(time) ? time : undefined,
     partySize: Number.isInteger(guests) && guests >= 1 && guests <= 20 ? guests : undefined,
   };
@@ -25,7 +27,7 @@ function parseInitialValues(params: URLSearchParams) {
 export function BookingFlow() {
   const navigate = useNavigate();
   const [urlParams] = useSearchParams();
-const initialValues = parseInitialValues(urlParams);
+  const initialValues = parseInitialValues(urlParams);
   const [step, setStep] = useState<Step>("search");
   const [searchParams, setSearchParams] = useState<AvailabilitySearchFormValues | null>(null);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
@@ -107,12 +109,13 @@ const initialValues = parseInitialValues(urlParams);
         </div>
       )}
 
-            {step === "search" && (
+      {step === "search" && (
         <BookingSearchForm
+          key={urlParams.toString()}
           onSearch={handleSearch}
           isLoading={isLoading}
           errorMessage={searchError}
-          initialValues={initialValues}
+          initialValues={searchParams ?? initialValues}
         />
       )}
       {step === "select-table" && (
