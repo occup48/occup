@@ -64,13 +64,12 @@ export function BookingFlow() {
       setSelectedTable(null);
       setRefreshError(null);
       const refreshed = await search(searchParams);
-      if (refreshed) {
-        setStep("select-table");
-      } else {
+      if (!refreshed) {
         setRefreshError(
           "That table is no longer available, and we couldn't refresh the list. Please try again.",
         );
       }
+      setStep("select-table");
     }
   };
 
@@ -99,12 +98,15 @@ export function BookingFlow() {
       )}
 
       {step === "select-table" && (
-        <TableSelection
-          tables={tables}
-          selectedTableId={selectedTable?.id}
-          onSelect={handleSelectTable}
-          onBack={() => setStep("search")}
-        />
+        <>
+          {refreshError && <p className="text-sm text-red-500">{refreshError}</p>}
+          <TableSelection
+            tables={tables}
+            selectedTableId={selectedTable?.id}
+            onSelect={handleSelectTable}
+            onBack={() => setStep("search")}
+          />
+        </>
       )}
 
       {step === "review" && searchParams && selectedTable && (
