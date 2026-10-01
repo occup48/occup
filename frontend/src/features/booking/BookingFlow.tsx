@@ -26,6 +26,7 @@ export function BookingFlow() {
   const showUncertainBanner = isUncertain && !acknowledgedUncertain;
 
   const handleSearch = async (values: AvailabilitySearchFormValues) => {
+    setRefreshError(null);
     setSearchParams(values);
     const success = await search(values);
     if (success) {
