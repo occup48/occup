@@ -37,7 +37,7 @@ const googleScript = `
   } } };
 `;
 
-async function openApp() {
+async function openApp({ holdAvailability } = {}) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const authCalls = [];
   const availabilityCalls = [];
@@ -46,8 +46,9 @@ async function openApp() {
   await context.route("https://accounts.google.com/gsi/client", (route) =>
     route.fulfill({ contentType: "application/javascript", body: googleScript }),
   );
-  await context.route(/\/api\/availability/, (route) => {
+  await context.route(/\/api\/availability/, async (route) => {
     availabilityCalls.push(new URL(route.request().url()).searchParams);
+    if (holdAvailability) await holdAvailability; // lets a test keep a search pending
     return route.fulfill({ json: { success: true, data: { tables } } });
   });
   // A signed-out guest must never reach this endpoint; any call is recorded and failed.
@@ -218,3 +219,89 @@ for (const [label, pickSwitch] of Object.entries(switchers)) {
     }
   });
 }
+
+test("a search still pending when the guest goes Back does not open the table step", async () => {
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const app = await openApp({ holdAvailability: gate });
+  try {
+    await app.page.goto(baseURL + bookingPath);
+    await next(app.page).click();
+    await app.page.getByRole("heading", { name: "Select a Time" }).waitFor();
+    await next(app.page).click(); // starts the availability search, which the test holds back
+    await app.page.getByRole("button", { name: "Checking...", exact: true }).waitFor();
+    await app.page.getByRole("button", { name: "Back", exact: true }).click();
+    await app.page.getByRole("heading", { name: "Let's Find Your Table" }).waitFor();
+    const answered = app.page.waitForResponse(/\/api\/availability/);
+    release();
+    await answered;
+    // Give the page a moment to handle the late response, then check that nothing moved.
+    await app.page.evaluate(
+      () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+    );
+    assert.equal(await app.page.getByRole("heading", { name: "Choose Your Table" }).count(), 0);
+    await app.page.getByRole("heading", { name: "Let's Find Your Table" }).waitFor();
+  } finally {
+    release();
+    await app.close();
+  }
+});
+
+test("choosing a party size changes the availability request", async () => {
+  const app = await openApp();
+  try {
+    await app.page.goto(baseURL + bookingPath);
+    await app.page.getByRole("combobox", { name: "Party size" }).click();
+    await app.page.getByRole("option", { name: "4 Guests", exact: true }).click();
+    await next(app.page).click();
+    await app.page.getByRole("heading", { name: "Select a Time" }).waitFor();
+    await next(app.page).click();
+    await app.page.getByRole("button", { name: "T01" }).waitFor();
+    const search = app.availabilityCalls.at(-1);
+    assert.equal(search.get("partySize"), "4");
+    assert.equal(search.get("date"), "2099-01-15");
+    assert.equal(search.get("time"), "19:30");
+  } finally {
+    await app.close();
+  }
+});
+
+test("choosing a day in the calendar changes the availability request", async () => {
+  const app = await openApp();
+  try {
+    await app.page.goto(baseURL + bookingPath);
+    await app.page.getByRole("button", { name: /^Date,/ }).click();
+    // The calendar opens on the linked month (January 2099); pick the 20th.
+    await app.page.getByRole("button", { name: /January 20(?!\d)/ }).click();
+    await app.page.getByRole("button", { name: "Date, Jan 20, 2099" }).waitFor();
+    await next(app.page).click();
+    await app.page.getByRole("heading", { name: "Select a Time" }).waitFor();
+    await next(app.page).click();
+    await app.page.getByRole("button", { name: "T01" }).waitFor();
+    const search = app.availabilityCalls.at(-1);
+    assert.equal(search.get("date"), "2099-01-20");
+    assert.equal(search.get("partySize"), "2");
+    assert.equal(search.get("time"), "19:30");
+  } finally {
+    await app.close();
+  }
+});
+
+test("a slot that starts while the page is open becomes unavailable", async () => {
+  const app = await openApp();
+  try {
+    // 11:59:30 in Lagos (UTC+1) on the linked day: every slot from 12:00 PM on is still bookable.
+    await app.page.clock.install({ time: new Date("2099-01-15T10:59:30Z") });
+    await app.page.goto(baseURL + bookingPath);
+    await next(app.page).click();
+    await app.page.getByRole("heading", { name: "Select a Time" }).waitFor();
+    const noon = app.page.getByRole("button", { name: "12:00 PM", exact: true });
+    assert.equal(await noon.isDisabled(), false);
+    await app.page.clock.runFor(31_000);
+    assert.equal(await noon.isDisabled(), true);
+  } finally {
+    await app.close();
+  }
+});

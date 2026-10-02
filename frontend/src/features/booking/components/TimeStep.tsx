@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isFutureBookingTime } from "@/features/restaurant/utils/booking-time";
@@ -27,8 +28,14 @@ export function TimeStep({
   onBack,
   onNext,
 }: Props) {
+  // Refresh at minute boundaries, so a slot that starts while the page is open becomes unavailable.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setNow(new Date()), 60_000 - (Date.now() % 60_000));
+    return () => window.clearTimeout(timeout);
+  }, [now]);
+
   const day = parseDateString(date);
-  const now = new Date();
   const isAvailable = (slot: TimeSlot) =>
     isFutureBookingTime(day, slot.value, now, RESTAURANT_TIMEZONE);
   const anyAvailable = TIME_SLOTS.some(isAvailable);
@@ -40,8 +47,8 @@ export function TimeStep({
       <h2 className="text-base font-semibold">{title}</h2>
       <div className="grid grid-cols-3 gap-3">
         {slots.map((slot) => {
-          const selected = slot.value === time;
           const available = isAvailable(slot);
+          const selected = slot.value === time && available;
           return (
             <button
               key={slot.value}

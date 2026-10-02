@@ -43,6 +43,8 @@ function BookingWizard({ initialValues }: { initialValues: InitialValues }) {
   const [acknowledgedUncertain, setAcknowledgedUncertain] = useState(false);
   const [redirectingToSignIn, setRedirectingToSignIn] = useState(false);
   const redirectTimer = useRef<number | null>(null);
+  // Identifies the latest availability search, so an older one that finishes late is ignored.
+  const searchRun = useRef(0);
 
   const { tables, isLoading, error: searchError, search } = useAvailability();
   const { submit, isSubmitting, error: submitError, isUncertain, clearError } = useCreateReservation();
@@ -89,7 +91,10 @@ function BookingWizard({ initialValues }: { initialValues: InitialValues }) {
     setSelectedTable(null);
     const values = { date, time, partySize };
     setSearched(values);
+    const run = ++searchRun.current;
     const success = await search(values);
+    // The guest may have gone Back or picked another time while this search was running.
+    if (run !== searchRun.current) return;
     if (success) {
       setStep("table");
     }
@@ -193,8 +198,14 @@ function BookingWizard({ initialValues }: { initialValues: InitialValues }) {
             time={time}
             isSearching={isLoading}
             errorMessage={timeError ?? searchError}
-            onSelect={setTime}
-            onBack={() => setStep("date")}
+            onSelect={(value) => {
+              searchRun.current += 1;
+              setTime(value);
+            }}
+            onBack={() => {
+              searchRun.current += 1;
+              setStep("date");
+            }}
             onNext={handleTimeNext}
           />
         )}
