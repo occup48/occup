@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { test, after } from "node:test";
 import { chromium } from "playwright";
 
-// Browser tests for the booking <-> auth return flow (#14 redirect, #15 sign-up path).
-// Every HTTP call and the Google script are mocked here, so no backend or database is touched.
+// Browser tests for the booking <-> auth return flow (#14 redirect, #15 sign-up path),
+// on the three-step booking wizard. Every HTTP call and the Google script are mocked
+// here, so no backend or database is touched.
 const baseURL = process.env.AUTH_TEST_URL || "http://localhost:5173";
 const browser = await chromium.launch({ headless: true }).catch(() =>
   chromium.launch({ channel: "msedge", headless: true }),
@@ -39,14 +40,16 @@ const googleScript = `
 async function openApp() {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const authCalls = [];
+  const availabilityCalls = [];
   const reservationCalls = [];
   const errors = [];
   await context.route("https://accounts.google.com/gsi/client", (route) =>
     route.fulfill({ contentType: "application/javascript", body: googleScript }),
   );
-  await context.route(/\/api\/availability/, (route) =>
-    route.fulfill({ json: { success: true, data: { tables } } }),
-  );
+  await context.route(/\/api\/availability/, (route) => {
+    availabilityCalls.push(new URL(route.request().url()).searchParams);
+    return route.fulfill({ json: { success: true, data: { tables } } });
+  });
   // A signed-out guest must never reach this endpoint; any call is recorded and failed.
   await context.route(/\/api\/reservations/, (route) => {
     reservationCalls.push(route.request().method());
@@ -65,6 +68,7 @@ async function openApp() {
   return {
     page,
     authCalls,
+    availabilityCalls,
     reservationCalls,
     async close() {
       assert.deepEqual(errors, []);
@@ -86,11 +90,23 @@ async function fillSignUp(page) {
   await page.getByLabel("Confirm password", { exact: true }).fill("ValidPass1!");
 }
 
-// Signed out: search, pick a table and confirm, ending on the "taking you to sign-in" message.
-async function reachConfirmSignedOut(page) {
+const next = (page) => page.getByRole("button", { name: "Next", exact: true });
+
+// Walks the wizard from the prefilled link up to the Review screen.
+async function walkToReview(page) {
   await page.goto(baseURL + bookingPath);
-  await page.getByRole("button", { name: "Check Availability", exact: true }).click();
+  await next(page).click(); // Date & Guests -> Time (the linked time is preselected)
+  await page.getByRole("heading", { name: "Select a Time" }).waitFor();
+  await next(page).click(); // Time -> Table (runs the availability search)
+  await page.getByRole("heading", { name: "Choose Your Table" }).waitFor();
   await page.getByRole("button", { name: "T01" }).click();
+  await next(page).click(); // Table -> Review
+  await page.getByRole("heading", { name: "Review Your Reservation" }).waitFor();
+}
+
+// Signed out: confirm, ending on the "taking you to sign-in" message.
+async function reachConfirmSignedOut(page) {
+  await walkToReview(page);
   await page.getByRole("button", { name: "Confirm Reservation", exact: true }).click();
   await page.getByText(redirectMessage).waitFor();
 }
@@ -104,11 +120,23 @@ function isPrefilledBookingUrl(url) {
   );
 }
 
-async function assertBackOnPrefilledBooking(page) {
+// Back on the wizard with the linked search still in place: the date, the 7:30 PM slot,
+// and a table search that carries the original date, time and party size.
+async function assertBackOnPrefilledBooking(app) {
+  const { page } = app;
   await page.waitForURL(isPrefilledBookingUrl);
-  assert.equal(await page.getByLabel("Date", { exact: true }).inputValue(), "2099-01-15");
-  assert.equal(await page.getByLabel("Time", { exact: true }).inputValue(), "19:30");
-  assert.equal(await page.getByLabel("Party Size", { exact: true }).inputValue(), "2");
+  await page.getByRole("heading", { name: "Let's Find Your Table" }).waitFor();
+  await page.getByRole("button", { name: "Date, Jan 15, 2099" }).waitFor();
+  await next(page).click();
+  await page.getByRole("heading", { name: "Select a Time" }).waitFor();
+  const slot = page.getByRole("button", { name: "7:30 PM", exact: true });
+  assert.equal(await slot.getAttribute("aria-pressed"), "true");
+  await next(page).click();
+  await page.getByRole("button", { name: "T01" }).waitFor();
+  const search = app.availabilityCalls.at(-1);
+  assert.equal(search.get("date"), "2099-01-15");
+  assert.equal(search.get("time"), "19:30");
+  assert.equal(search.get("partySize"), "2");
 }
 
 test("an unauthenticated confirm redirects to sign-in and returns to the prefilled booking form", async () => {
@@ -119,7 +147,7 @@ test("an unauthenticated confirm redirects to sign-in and returns to the prefill
     await app.page.getByRole("heading", { name: "Log in to your account" }).waitFor();
     await fillSignIn(app.page);
     await app.page.getByRole("button", { name: "Log in", exact: true }).click();
-    await assertBackOnPrefilledBooking(app.page);
+    await assertBackOnPrefilledBooking(app);
     assert.equal(
       await app.page.evaluate(() => localStorage.getItem("occup.accessToken")),
       "browser-test-token",
@@ -135,17 +163,14 @@ test("going Back during the redirect delay cancels it", async () => {
   try {
     // Control the page clock so the 2 second redirect timer cannot fire on its own.
     await app.page.clock.install();
-    await app.page.goto(baseURL + bookingPath);
-    await app.page.getByRole("button", { name: "Check Availability", exact: true }).click();
-    await app.page.getByRole("button", { name: "T01" }).click();
+    await walkToReview(app.page);
     const confirm = app.page.getByRole("button", { name: "Confirm Reservation", exact: true });
-    await confirm.waitFor();
     // Freeze time here: from now on, timers only fire when the test advances the clock.
     await app.page.clock.pauseAt(new Date(Date.now() + 5000));
     await confirm.click();
     await app.page.getByText(redirectMessage).waitFor();
     await app.page.getByRole("button", { name: "Back", exact: true }).click();
-    await app.page.getByRole("button", { name: "T01" }).waitFor();
+    await app.page.getByRole("heading", { name: "Choose Your Table" }).waitFor();
     // Advance well past the 2 second delay. A redirect that was not cancelled would fire now.
     await app.page.clock.runFor(5000);
     assert.equal(new URL(app.page.url()).pathname, "/booking");
@@ -181,7 +206,7 @@ for (const [label, pickSwitch] of Object.entries(switchers)) {
       await app.page.getByRole("status").filter({ hasText: "Your account is ready" }).waitFor();
       await app.page.getByLabel("Password", { exact: true }).fill("ValidPass1!");
       await app.page.getByRole("button", { name: "Log in", exact: true }).click();
-      await assertBackOnPrefilledBooking(app.page);
+      await assertBackOnPrefilledBooking(app);
       assert.ok(
         app.authCalls.some(
           (call) => call.method === "POST" && /sign-?up$/.test(new URL(call.url).pathname),
