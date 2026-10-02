@@ -37,7 +37,11 @@ export function TableSelection({ tables, selectedTableId, onSelect, onBack, onNe
       </div>
 
       {zones.length > 0 && (
-        <div role="group" aria-label="Seating area" className="flex gap-2 overflow-x-auto">
+        <div
+          role="group"
+          aria-label="Seating area"
+          className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           {zones.map((name) => (
             <button
               key={name}
