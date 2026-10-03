@@ -4,6 +4,8 @@ import express from "express";
 
 import authRoutes from "./routes/auth.routes.js";
 import adminRoutes from "./routes/admin.routes.js"
+import availabilityRoutes from "./routes/availability.routes.js";
+import reservationsRoutes from "./routes/reservations.routes.js";
 
 config({ path: ".env.local" });
 
@@ -29,6 +31,8 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/availability", availabilityRoutes);
+app.use("/api/reservations", reservationsRoutes);
 
 app.listen(port, "0.0.0.0", () => {
   console.log(`Server running at http://localhost:${port}`);

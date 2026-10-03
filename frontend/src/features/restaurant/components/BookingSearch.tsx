@@ -7,7 +7,11 @@ const Calendar = lazy(() => import("@/components/ui/calendar").then((module) => 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { isFutureBookingTime } from "@/features/restaurant/utils/booking-time";
+import { isFutureBookingTime as isFutureSlot } from "@/features/restaurant/utils/booking-time";
+import { RESTAURANT_TIMEZONE } from "@/features/restaurant/restaurant-timezone";
+
+const isFutureBookingTime = (date: Date, time: string, now: Date) =>
+  isFutureSlot(date, time, now, RESTAURANT_TIMEZONE);
 
 const partySizes = Array.from({ length: 8 }, (_, index) => ({
   value: String(index + 1),

@@ -1,5 +1,7 @@
+import { BookingFlow } from "@/features/booking/BookingFlow";
+
 const BookingPage = () => {
-  return <div>BookingPage</div>;
+  return <BookingFlow />;
 };
 
 export default BookingPage;
