@@ -3,6 +3,7 @@ import cors from "cors";
 import express from "express";
 
 import authRoutes from "./routes/auth.routes.js";
+import adminRoutes from "./routes/admin.routes.js"
 import availabilityRoutes from "./routes/availability.routes.js";
 import reservationsRoutes from "./routes/reservations.routes.js";
 
@@ -20,6 +21,7 @@ app.use(
 );
 
 app.use(express.json());
+app.use("/api/admin", adminRoutes)
 
 app.get("/api/health", (_req, res) => {
   res.status(200).json({
