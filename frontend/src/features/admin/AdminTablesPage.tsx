@@ -30,6 +30,7 @@ export default function AdminTablesPage() {
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const requests = useRef(new Map<string, AbortController>());
+  const pendingLoadMutations = useRef<Map<string, AdminTable> | null>(null);
   const addButton = useRef<HTMLButtonElement | null>(null);
 
   const handleAuthorizationError = useCallback((error: unknown) => {
@@ -41,12 +42,23 @@ export default function AdminTablesPage() {
 
   useEffect(() => {
     const controller = new AbortController();
+    const mutations = new Map<string, AdminTable>();
+    pendingLoadMutations.current = mutations;
     getAdminTables(accessToken ?? "", controller.signal).then((data) => {
-      if (!controller.signal.aborted) setTables(sortTables(data));
+      if (controller.signal.aborted) return;
+      // A pending GET may contain an older snapshot than a confirmed save.
+      const loadedTables = new Map(data.map((table) => [table.id, table]));
+      for (const [id, table] of mutations) loadedTables.set(id, table);
+      setTables(sortTables([...loadedTables.values()]));
     }).catch((error: unknown) => {
       if (!controller.signal.aborted && !handleAuthorizationError(error)) setLoadError(getTableError(error));
-    }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
+    }).finally(() => {
+      if (!controller.signal.aborted) {
+        pendingLoadMutations.current = null;
+        setLoading(false);
+      }
+    });
+    return () => { controller.abort(); pendingLoadMutations.current = null; };
   }, [accessToken, reload, handleAuthorizationError]);
 
   useEffect(() => {
@@ -69,6 +81,7 @@ export default function AdminTablesPage() {
   function retry() { setLoading(true); setLoadError(""); setReload((value) => value + 1); }
   function resetFilters() { setQuery(""); setStatus("all"); setArea(""); }
   function savedTable(table: AdminTable) {
+    pendingLoadMutations.current?.set(table.id, table);
     setTables((current) => sortTables(current.some((item) => item.id === table.id) ? current.map((item) => item.id === table.id ? table : item) : [...current, table]));
     setFeedback({ kind: "success", message: editor?.mode === "create" ? `Table ${table.tableNumber} created successfully.` : `Table ${table.tableNumber} updated successfully.` });
     if (editor?.mode === "create") resetFilters();
@@ -83,6 +96,7 @@ export default function AdminTablesPage() {
     try {
       const saved = await updateAdminTable(accessToken ?? "", table.id, { isActive: !table.isActive }, controller.signal);
       if (controller.signal.aborted) return;
+      pendingLoadMutations.current?.set(saved.id, saved);
       setTables((current) => current.map((item) => item.id === saved.id ? saved : item));
       setFeedback({ kind: "success", message: `Table ${saved.tableNumber} ${saved.isActive ? "activated" : "deactivated"}.` });
     } catch (error) {
