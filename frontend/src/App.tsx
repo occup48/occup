@@ -8,6 +8,8 @@ import SignInPage from "@/pages/SignInPage";
 import SignUpPage from "@/pages/SignUpPage";
 
 import { AuthProvider } from "@/features/auth/AuthProvider";
+import { RequireAdmin } from "@/features/admin/AdminLayout";
+import AdminTablesPage from "@/features/admin/AdminTablesPage";
 
 const App = () => (
   <BrowserRouter>
@@ -22,6 +24,10 @@ const App = () => (
       <Route path="/sign-up" element={<Navigate to="/signup" replace />} />
       <Route path="/reservations" element={<ReservationsPage />} />
       <Route path="/reservations/:id" element={<ReservationDetailsPage />} />
+      <Route element={<RequireAdmin />}>
+        <Route path="/admin" element={<Navigate to="/admin/tables" replace />} />
+        <Route path="/admin/tables" element={<AdminTablesPage />} />
+      </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </AuthProvider>
