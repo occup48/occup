@@ -15,4 +15,11 @@ export type TablePayload = {
   isActive: boolean;
 };
 
-export type TableStatusFilter = "all" | "active" | "inactive";
+export type TableAvailabilityStatus = "available" | "reserved" | "occupied" | "unavailable";
+export type TableStatusFilter = "all" | TableAvailabilityStatus;
+
+// Reservation-derived states remain part of the vocabulary, but the current
+// table API only exposes isActive. Never infer a booking from that flag.
+export function getTableAvailabilityStatus(table: Pick<AdminTable, "isActive">): TableAvailabilityStatus {
+  return table.isActive ? "available" : "unavailable";
+}
