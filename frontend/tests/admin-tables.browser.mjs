@@ -50,8 +50,11 @@ async function setup(options = {}) {
   });
   const page = await context.newPage();
   page.on("pageerror", (error) => state.errors.push(error.message));
-  await page.goto(baseURL + "/admin/tables");
-  if (options.ready !== false && options.auth !== false && options.role !== "customer") await page.getByRole("heading", { name: "T-01", exact: true }).waitFor();
+  const path = options.path || "/admin/tables";
+  await page.goto(baseURL + path);
+  if (options.ready !== false && options.auth !== false && options.role !== "customer") {
+    await page.getByRole("heading", { name: path === "/admin" ? "Dashboard" : "T-01", exact: true }).waitFor();
+  }
   return { page, state, async close() { await context.close(); assert.deepEqual(state.errors, []); } };
 }
 const visibleSearch = (page) => page.locator('input[type="search"]:visible');
@@ -76,8 +79,8 @@ async function noOverflow(page) {
 }
 
 test("route protection waits for auth and rejects guests and non-admins without fetching tables", async () => {
-  for (const options of [{ auth: false }, { role: "customer" }]) {
-    const app = await setup({ ...options, ready: false });
+  for (const path of ["/admin", "/admin/tables"]) for (const options of [{ auth: false }, { role: "customer" }]) {
+    const app = await setup({ ...options, path, ready: false });
     try {
       await app.page.waitForURL(baseURL + (options.auth === false ? "/signin" : "/"));
       assert.equal(app.state.calls.length, 0);
@@ -92,12 +95,44 @@ test("route protection waits for auth and rejects guests and non-admins without 
   } finally { await app.close(); }
 });
 
+test("dashboard shows honest unavailable states, working links and responsive layouts", async () => {
+  const app = await setup({ path: "/admin" });
+  try {
+    const { page, state } = app;
+    assert.equal(await page.locator(".admin-stat-card").count(), 4);
+    assert.equal(await page.locator(".admin-stat-value").allTextContents().then((values) => values.every((value) => value.trim() === "—")), true);
+    assert.equal(await page.getByText("Data unavailable", { exact: true }).count(), 4);
+    await page.getByText("No reservation data is available yet.").waitFor();
+    await page.getByText("No trend data available", { exact: true }).waitFor();
+    assert.equal(await page.locator("#admin-main").getByRole("link", { name: /Manage Tables/ }).getAttribute("href"), "/admin/tables");
+    assert.equal(await page.locator("#admin-main").getByRole("link", { name: /View Site/ }).getAttribute("href"), "/");
+    assert.equal(state.calls.length, 0, "dashboard must not request unavailable reservation data");
+    await page.getByRole("combobox", { name: "Trend date range" }).click();
+    await page.getByRole("option", { name: "This Month" }).click();
+    await page.getByRole("img", { name: "No reservation trend data is available for this month" }).waitFor();
+
+    for (const width of [320, 375, 768, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await noOverflow(page);
+      assert.equal(await page.locator(".admin-desktop-sidebar").isVisible(), width >= 1024);
+      await page.screenshot({ path: `${artifacts}/dashboard-${width}.png`, fullPage: true });
+    }
+    await page.goto(baseURL + "/admin/dashboard");
+    await page.waitForURL(baseURL + "/admin");
+    await page.getByRole("heading", { name: "Dashboard", exact: true }).waitFor();
+  } finally { await app.close(); }
+});
+
 test("search, status counts and data-derived area filters combine and reset", async () => {
   const app = await setup();
   try {
     const { page } = app;
-    await page.getByRole("button", { name: /^Inactive/ }).click(); await count(page, 2);
-    await page.getByRole("button", { name: /^Active/ }).click(); await count(page, 6);
+    await page.getByRole("button", { name: /^Unavailable/ }).click(); await count(page, 2);
+    await page.getByRole("button", { name: /^Available/ }).click(); await count(page, 6);
+    await page.getByRole("button", { name: /^Occupied/ }).click(); await count(page, 0);
+    await page.getByRole("heading", { name: "No tables found" }).waitFor();
+    await page.getByRole("button", { name: /^Reserved/ }).click(); await count(page, 0);
+    await page.getByRole("button", { name: /^Available/ }).click(); await count(page, 6);
     await chooseArea(page, "Private"); await count(page, 1);
     await visibleSearch(page).fill("t-08"); await count(page, 1);
     await visibleSearch(page).fill(" MAIN room ");
@@ -149,7 +184,7 @@ test("one shared form validates, handles duplicates, creates and edits persisted
     assert.deepEqual(edited.payload, { tableNumber: "T-10", capacity: 5, location: "", isActive: false });
     const card = page.getByRole("article", { name: "Table T-10", exact: true });
     assert.equal(await card.getByText("No location").isVisible(), true);
-    assert.equal(await card.getByText("Inactive", { exact: true }).isVisible(), true);
+    assert.equal(await card.getByText("Unavailable", { exact: true }).isVisible(), true);
   } finally { await app.close(); }
 });
 
@@ -158,21 +193,21 @@ test("activation shows pending state and only updates cards after successful PAT
   try {
     const { page, state } = app;
     state.delay = 500;
-    await action(page, "T-01", "Deactivate table");
+    await action(page, "T-01", "Mark unavailable");
     const card = page.getByRole("article", { name: "Table T-01", exact: true });
     await card.getByText("Updating…").waitFor();
     assert.equal(await card.getByRole("button").isDisabled(), true);
-    await card.getByText("Inactive", { exact: true }).waitFor();
+    await card.getByText("Unavailable", { exact: true }).waitFor();
     assert.deepEqual(state.calls.at(-1).payload, { isActive: false });
     state.failure = 500;
-    await action(page, "T-01", "Activate table");
+    await action(page, "T-01", "Mark available");
     await page.getByRole("alert").waitFor();
-    assert.equal(await card.getByText("Inactive", { exact: true }).isVisible(), true);
+    assert.equal(await card.getByText("Unavailable", { exact: true }).isVisible(), true);
     assert.equal(await page.getByText("Raw database internals must not appear").count(), 0);
     state.failure = null; state.delay = 0;
-    await action(page, "T-01", "Activate table");
-    await card.getByText("Active", { exact: true }).waitFor();
-    await page.getByRole("button", { name: /^Active.*6/ }).waitFor();
+    await action(page, "T-01", "Mark available");
+    await card.getByText("Available", { exact: true }).waitFor();
+    await page.getByRole("button", { name: /^Available.*6/ }).waitFor();
   } finally { await app.close(); }
 });
 
@@ -184,7 +219,7 @@ test("loading, retry, empty list and failed create preserve a usable UI", async 
     await page.getByRole("heading", { name: "Unable to load tables" }).waitFor();
     state.failure = null; state.delay = 0; state.tables = [];
     await page.getByRole("button", { name: "Try again" }).click();
-    await page.getByRole("heading", { name: "A place for every guest" }).waitFor();
+    await page.getByRole("heading", { name: "No tables yet" }).waitFor();
     await page.getByRole("button", { name: "Add your first table" }).click();
     await formValues(page, "A1", 2);
     state.failure = 500;
@@ -208,7 +243,7 @@ test("expired and forbidden sessions redirect safely for reads and mutations", a
   const app = await setup();
   try {
     app.state.failure = 401;
-    await action(app.page, "T-01", "Deactivate table");
+    await action(app.page, "T-01", "Mark unavailable");
     await app.page.waitForURL(baseURL + "/signin");
     assert.equal(await app.page.evaluate(() => sessionStorage.getItem("occup.accessToken")), null);
   } finally { await app.close(); }

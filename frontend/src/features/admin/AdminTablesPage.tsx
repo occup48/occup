@@ -10,7 +10,7 @@ import { AdminLayout } from "./AdminLayout";
 import { TableCard } from "./TableCard";
 import { TableForm } from "./TableForm";
 import { AdminTableError, getAdminTables, getTableError, updateAdminTable } from "./admin-table.service";
-import type { AdminTable, TableStatusFilter } from "./admin-table.types";
+import { getTableAvailabilityStatus, type AdminTable, type TableStatusFilter } from "./admin-table.types";
 
 type Editor = { mode: "create" } | { mode: "edit"; table: AdminTable };
 const sortTables = (tables: AdminTable[]) => [...tables].sort((a, b) => a.tableNumber.localeCompare(b.tableNumber, undefined, { numeric: true }));
@@ -71,12 +71,24 @@ export default function AdminTablesPage() {
   const selectedArea = locations.includes(area) ? area : "";
   const search = query.trim().toLowerCase();
   const filteredTables = tables.filter((table) =>
-    (status === "all" || table.isActive === (status === "active")) &&
+    (status === "all" || getTableAvailabilityStatus(table) === status) &&
     (!selectedArea || table.location?.trim() === selectedArea) &&
     (!search || table.tableNumber.toLowerCase().includes(search) || table.location?.toLowerCase().includes(search)),
   );
-  const activeCount = tables.filter((table) => table.isActive).length;
-  const counts = { all: tables.length, active: activeCount, inactive: tables.length - activeCount };
+  const counts: Record<TableStatusFilter, number> = {
+    all: tables.length,
+    available: tables.filter((table) => getTableAvailabilityStatus(table) === "available").length,
+    occupied: 0,
+    reserved: 0,
+    unavailable: tables.filter((table) => getTableAvailabilityStatus(table) === "unavailable").length,
+  };
+  const statusFilters: { value: TableStatusFilter; label: string }[] = [
+    { value: "all", label: "All" },
+    { value: "available", label: "Available" },
+    { value: "occupied", label: "Occupied" },
+    { value: "reserved", label: "Reserved" },
+    { value: "unavailable", label: "Unavailable" },
+  ];
 
   function retry() { setLoading(true); setLoadError(""); setReload((value) => value + 1); }
   function resetFilters() { setQuery(""); setStatus("all"); setArea(""); }
@@ -115,15 +127,15 @@ export default function AdminTablesPage() {
 
   return <AdminLayout search={searchInput}>
     <div className="admin-page-header">
-      <div><h1>Table Management</h1><p>Manage your restaurant tables and their details.</p></div>
+      <div><h1>Table Management</h1><p>Manage your restaurant tables and their status.</p></div>
       <Button ref={addButton} className="admin-primary-button admin-add-button" onClick={() => setEditor({ mode: "create" })}><Plus aria-hidden="true" />Add Table</Button>
     </div>
     <div className="admin-content">
       <div className="admin-mobile-search">{searchInput}</div>
       <div className="admin-filters">
         <div className="admin-status-filters" role="group" aria-label="Filter tables by status">
-          {(["all", "active", "inactive"] as const).map((filter) => <button key={filter} className={`admin-filter admin-filter-${filter}`} aria-pressed={status === filter} onClick={() => setStatus(filter)}>
-            {filter[0].toUpperCase() + filter.slice(1)}{!loading && !loadError && <span>({counts[filter]})</span>}
+          {statusFilters.map(({ value, label }) => <button key={value} className={`admin-filter admin-filter-${value}`} aria-pressed={status === value} onClick={() => setStatus(value)}>
+            {label}{!loading && !loadError && <span>({counts[value]})</span>}
           </button>)}
         </div>
         <Select value={selectedArea} onValueChange={(value) => setArea(value ?? "")}>
@@ -140,7 +152,7 @@ export default function AdminTablesPage() {
       </div>}
       {loading ? <div role="status" aria-label="Loading tables"><span className="sr-only">Loading tables…</span><div className="admin-table-grid" aria-hidden="true">{Array.from({ length: 8 }, (_, index) => <div className="admin-table-skeleton" key={index}><span /><span /><span /><span /></div>)}</div></div>
         : loadError ? <div className="admin-empty-state" role="alert"><div className="admin-empty-icon is-error"><CircleAlert aria-hidden="true" /></div><h2>Unable to load tables</h2><p>{loadError}</p><Button className="admin-primary-button" onClick={retry}><RotateCw aria-hidden="true" />Try again</Button></div>
-        : tables.length === 0 ? <div className="admin-empty-state"><div className="admin-empty-icon"><DiningTableIcon aria-hidden="true" /></div><h2>A place for every guest</h2><p>Add your first table to start organizing your restaurant.</p><Button className="admin-primary-button" onClick={() => setEditor({ mode: "create" })}><Plus aria-hidden="true" />Add your first table</Button></div>
+        : tables.length === 0 ? <div className="admin-empty-state"><div className="admin-empty-icon"><DiningTableIcon aria-hidden="true" /></div><h2>No tables yet</h2><p>Add your first table to start managing restaurant seating.</p><Button className="admin-primary-button" onClick={() => setEditor({ mode: "create" })}><Plus aria-hidden="true" />Add your first table</Button></div>
         : filteredTables.length === 0 ? <div className="admin-empty-state"><div className="admin-empty-icon"><Search aria-hidden="true" /></div><h2>No tables found</h2><p>Try a different search or adjust your filters.</p><Button className="admin-secondary-button" variant="outline" onClick={resetFilters}>Clear filters</Button></div>
         : <><div className="admin-table-grid">{filteredTables.map((table) => <TableCard key={table.id} table={table} busy={busyIds.has(table.id)} onEdit={(selected) => setEditor({ mode: "edit", table: selected })} onToggle={(selected) => void toggleTable(selected)} />)}</div><p className="admin-results-count" role="status">Showing {filteredTables.length} of {tables.length} {tables.length === 1 ? "table" : "tables"}<span aria-hidden="true">·</span>{filteredTables.reduce((sum, table) => sum + table.capacity, 0)} seats</p></>}
     </div>

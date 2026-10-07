@@ -9,6 +9,7 @@ import SignUpPage from "@/pages/SignUpPage";
 
 import { AuthProvider } from "@/features/auth/AuthProvider";
 import { RequireAdmin } from "@/features/admin/AdminLayout";
+import AdminDashboardPage from "@/features/admin/AdminDashboardPage";
 import AdminTablesPage from "@/features/admin/AdminTablesPage";
 
 const App = () => (
@@ -25,7 +26,8 @@ const App = () => (
       <Route path="/reservations" element={<ReservationsPage />} />
       <Route path="/reservations/:id" element={<ReservationDetailsPage />} />
       <Route element={<RequireAdmin />}>
-        <Route path="/admin" element={<Navigate to="/admin/tables" replace />} />
+        <Route path="/admin" element={<AdminDashboardPage />} />
+        <Route path="/admin/dashboard" element={<Navigate to="/admin" replace />} />
         <Route path="/admin/tables" element={<AdminTablesPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
