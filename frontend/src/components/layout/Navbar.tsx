@@ -1,5 +1,5 @@
 import { CalendarDays, Menu, UserRound, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import logo from "@/assets/images/logo.png";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +18,12 @@ export function Navbar({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user } = useAuth();
+  const { pathname } = useLocation();
   const isAuth = variant === "auth";
+  // The section links only exist on the homepage; from any other page they go there.
+  const isHome = pathname === "/";
+  const onReservations = pathname.startsWith("/reservations");
+  const sectionHref = (href: string) => (isAuth || !isHome ? "/" + href : href);
   const navigation = isAuth
     ? [
         HOME_NAVIGATION[0],
@@ -41,10 +46,10 @@ export function Navbar({
           {navigation.map(({ label, href }) => (
             <a
               key={href}
-              href={isAuth ? "/" + href : href}
-              aria-current={!isAuth && label === "Home" ? "page" : undefined}
+              href={sectionHref(href)}
+              aria-current={!isAuth && isHome && label === "Home" ? "page" : undefined}
               className={
-                !isAuth && label === "Home"
+                !isAuth && isHome && label === "Home"
                   ? "nav-link text-primary-hover"
                   : "nav-link text-foreground/80"
               }
@@ -57,10 +62,12 @@ export function Navbar({
           <Link
             to={user ? "/reservations" : "/signin"}
             aria-label={user ? "Your reservations" : "Sign in"}
+            aria-current={user && onReservations ? "page" : undefined}
             className={
               isAuth
                 ? "flex size-11 items-center justify-center rounded-full bg-muted text-foreground"
-                : "nav-link flex size-11 items-center justify-center text-sm font-medium md:w-auto"
+                : "nav-link flex size-11 items-center justify-center text-sm font-medium md:w-auto " +
+                  (user && onReservations ? "text-primary-hover" : "")
             }
           >
             <UserRound
@@ -107,10 +114,10 @@ export function Navbar({
                 {navigation.map(({ label, href }) => (
                   <a
                     key={href}
-                    href={isAuth ? "/" + href : href}
+                    href={sectionHref(href)}
                     onClick={() => setMenuOpen(false)}
                     aria-current={
-                      !isAuth && label === "Home" ? "page" : undefined
+                      !isAuth && isHome && label === "Home" ? "page" : undefined
                     }
                     className="flex min-h-11 items-center rounded-md px-3 text-sm font-medium hover:bg-primary-light aria-[current=page]:text-primary-hover"
                   >
