@@ -12,6 +12,7 @@ import type { Table } from "./types/booking";
 import type { AvailabilitySearchFormValues } from "./validation/booking.schema";
 import { parseInitialValues } from "./utils/parseInitialValues";
 import { addDaysToDateString, parseDateString } from "./utils/dates";
+import { firstBookableDate } from "./utils/bookable-dates";
 import { isFutureBookingTime, restaurantNow } from "@/features/restaurant/utils/booking-time";
 import { RESTAURANT_TIMEZONE } from "@/features/restaurant/restaurant-timezone";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,8 @@ const DEFAULT_PARTY_SIZE = 2;
 function BookingWizard({ initialValues }: { initialValues: InitialValues }) {
   const navigate = useNavigate();
   const today = restaurantNow(new Date(), RESTAURANT_TIMEZONE).date;
+  // Today drops out of the calendar once its last slot has passed.
+  const firstBookable = firstBookableDate(new Date(), RESTAURANT_TIMEZONE, TIME_SLOTS);
 
   const [step, setStep] = useState<Step>("date");
   // Like the homepage widget, start from tomorrow unless the link says otherwise.
@@ -185,7 +188,7 @@ function BookingWizard({ initialValues }: { initialValues: InitialValues }) {
           <DateGuestsStep
             date={date}
             partySize={partySize}
-            minDate={today}
+            minDate={firstBookable}
             onDateChange={setDate}
             onPartySizeChange={setPartySize}
             onNext={handleDateNext}
@@ -262,7 +265,7 @@ export function BookingFlow() {
   const [urlParams] = useSearchParams();
   const initialValues = parseInitialValues(
     urlParams,
-    restaurantNow(new Date(), RESTAURANT_TIMEZONE).date,
+    firstBookableDate(new Date(), RESTAURANT_TIMEZONE, TIME_SLOTS),
   );
   // Remount when the link changes, so going to a plain /booking starts fresh.
   return <BookingWizard key={urlParams.toString()} initialValues={initialValues} />;
