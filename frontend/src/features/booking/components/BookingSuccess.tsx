@@ -36,6 +36,13 @@ export function BookingSuccess({ reservation, onBookAnother }: Props) {
           Book Another Table
         </Button>
       </div>
+
+      <Link
+        to="/reservations"
+        className="inline-flex min-h-11 items-center text-sm font-medium text-primary-ink underline-offset-4 hover:underline"
+      >
+        View my reservations
+      </Link>
     </div>
   );
 }
