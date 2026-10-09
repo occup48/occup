@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AdminSidebar } from "./AdminSidebar";
 import "./admin.css";
+import { cn } from "@/lib/utils";
 
 export function RequireAdmin() {
   const { user, isLoading } = useAuth();
@@ -17,13 +18,28 @@ export function RequireAdmin() {
   return <Outlet />;
 }
 
-export function AdminLayout({ search, children }: { search?: ReactNode; children: ReactNode }) {
+export function AdminLayout({
+  search,
+  children,
+  shellClassName,
+  profileName,
+  profileSubtitle = "Administrator",
+  profileInitials,
+}: {
+  search?: ReactNode;
+  children: ReactNode;
+  shellClassName?: string;
+  profileName?: string;
+  profileSubtitle?: string;
+  profileInitials?: string;
+}) {
   const [navigationOpen, setNavigationOpen] = useState(false);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const initials = `${user?.firstName?.[0] || "A"}${user?.lastName?.[0] || ""}`.toUpperCase();
+  const initials = profileInitials ?? `${user?.firstName?.[0] || "A"}${user?.lastName?.[0] || ""}`.toUpperCase();
+  const displayName = profileName ?? user?.firstName ?? "Admin";
 
-  return <div className="admin-shell">
+  return <div className={cn("admin-shell", shellClassName)}>
     <a className="skip-link" href="#admin-main">Skip to main content</a>
     <aside className="admin-desktop-sidebar"><AdminSidebar /></aside>
     <div className="admin-workspace">
@@ -47,7 +63,7 @@ export function AdminLayout({ search, children }: { search?: ReactNode; children
           <DropdownMenu>
             <DropdownMenuTrigger className="admin-profile" aria-label="Open admin account menu">
               <span className="admin-avatar">{initials}</span>
-              <span className="admin-profile-text"><strong>{user?.firstName || "Admin"}</strong><span>Administrator</span></span>
+              <span className="admin-profile-text"><strong>{displayName}</strong><span>{profileSubtitle}</span></span>
               <ChevronDown className="admin-profile-chevron" aria-hidden="true" />
             </DropdownMenuTrigger>
             <DropdownMenuContent>

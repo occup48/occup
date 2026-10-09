@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AdminApiError, requestAdminApi, type AdminApiMethod } from "./admin-api.service";
 import type { AdminTable, TablePayload } from "./admin-table.types";
 
 const tableResponseSchema = z.object({
@@ -16,7 +17,7 @@ export class AdminTableError extends Error {
   }
 }
 
-function failureMessage(status: number, method: string): string {
+function failureMessage(status: number, method: AdminApiMethod): string {
   if (status === 401) return "Your session has expired. Please sign in again.";
   if (status === 403) return "You no longer have access to manage tables.";
   if (status === 409) return "A table with this number already exists. Choose another number.";
@@ -27,25 +28,22 @@ function failureMessage(status: number, method: string): string {
 }
 
 async function request<T>(token: string, schema: z.ZodType<T>, method: "GET" | "POST" | "PATCH", id?: string, payload?: Partial<TablePayload>, signal?: AbortSignal): Promise<T> {
-  const base = import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, "");
-  if (!base) throw new AdminTableError("Table management is temporarily unavailable. Please try again later.");
-  if (!token) throw new AdminTableError(failureMessage(401, method), 401);
-  let response: Response;
   try {
-    response = await fetch(`${base}/api/admin/tables${id ? `/${encodeURIComponent(id)}` : ""}`, {
+    return await requestAdminApi({
+      token,
+      path: `/api/admin/tables${id ? `/${encodeURIComponent(id)}` : ""}`,
       method,
-      headers: { Authorization: `Bearer ${token}`, ...(payload ? { "Content-Type": "application/json" } : {}) },
-      body: payload ? JSON.stringify(payload) : undefined,
-      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
+      responseSchema: schema,
+      payload,
+      signal,
+      unavailableMessage: "Table management is temporarily unavailable. Please try again later.",
+      failureMessage,
+      responseErrorMessage: "We received an unexpected response. Please refresh your tables.",
     });
   } catch (error) {
-    if (signal?.aborted) throw error;
-    throw new AdminTableError("We couldn’t reach Occup. Check your connection and try again.");
+    if (error instanceof AdminApiError) throw new AdminTableError(error.message, error.status);
+    throw error;
   }
-  if (!response.ok) throw new AdminTableError(failureMessage(response.status, method), response.status);
-  const result = z.object({ success: z.literal(true), data: schema }).safeParse(await response.json().catch(() => null));
-  if (!result.success) throw new AdminTableError("We received an unexpected response. Please refresh your tables.");
-  return result.data.data;
 }
 
 export function getAdminTables(token: string, signal?: AbortSignal): Promise<AdminTable[]> {

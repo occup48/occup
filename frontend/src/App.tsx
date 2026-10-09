@@ -11,6 +11,7 @@ import { AuthProvider } from "@/features/auth/AuthProvider";
 import { RequireAdmin } from "@/features/admin/AdminLayout";
 import AdminDashboardPage from "@/features/admin/AdminDashboardPage";
 import AdminTablesPage from "@/features/admin/AdminTablesPage";
+import AdminSettingsPage from "@/features/admin/settings/AdminSettingsPage";
 
 const App = () => (
   <BrowserRouter>
@@ -29,6 +30,7 @@ const App = () => (
         <Route path="/admin" element={<AdminDashboardPage />} />
         <Route path="/admin/dashboard" element={<Navigate to="/admin" replace />} />
         <Route path="/admin/tables" element={<AdminTablesPage />} />
+        <Route path="/admin/settings" element={<AdminSettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
